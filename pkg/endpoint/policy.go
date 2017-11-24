@@ -95,7 +95,7 @@ func (e *Endpoint) cleanUnusedRedirects(owner Owner, oldMap policy.L4PolicyMap, 
 	}
 }
 
-func getSecurityIdentities(labelsMap *LabelsMap, selector *api.EndpointSelector) []policy.NumericIdentity {
+func getSecurityIdentities(labelsMap *policy.IdentityCache, selector *api.EndpointSelector) []policy.NumericIdentity {
 	identities := []policy.NumericIdentity{}
 	for idx, labels := range *labelsMap {
 		if selector.Matches(labels) {
@@ -110,7 +110,7 @@ func getSecurityIdentities(labelsMap *LabelsMap, selector *api.EndpointSelector)
 	return identities
 }
 
-func (e *Endpoint) removeOldFilter(labelsMap *LabelsMap, filter *policy.L4Filter) {
+func (e *Endpoint) removeOldFilter(labelsMap *policy.IdentityCache, filter *policy.L4Filter) {
 	port := uint16(filter.Port)
 	proto := uint8(filter.U8Proto)
 
@@ -128,7 +128,7 @@ func (e *Endpoint) removeOldFilter(labelsMap *LabelsMap, filter *policy.L4Filter
 	}
 }
 
-func (e *Endpoint) applyNewFilter(labelsMap *LabelsMap, filter *policy.L4Filter) int {
+func (e *Endpoint) applyNewFilter(labelsMap *policy.IdentityCache, filter *policy.L4Filter) int {
 	port := uint16(filter.Port)
 	proto := uint8(filter.U8Proto)
 
@@ -152,7 +152,7 @@ func (e *Endpoint) applyNewFilter(labelsMap *LabelsMap, filter *policy.L4Filter)
 
 // Looks for mismatches between 'oldPolicy' and 'newPolicy', and fixes up
 // this Endpoint's BPF PolicyMap to reflect the new L3+L4 combined policy.
-func (e *Endpoint) applyL4PolicyLocked(labelsMap *LabelsMap, oldPolicy *policy.L4Policy, newPolicy *policy.L4Policy) error {
+func (e *Endpoint) applyL4PolicyLocked(labelsMap *policy.IdentityCache, oldPolicy *policy.L4Policy, newPolicy *policy.L4Policy) error {
 	if oldPolicy != nil {
 		for _, filter := range oldPolicy.Ingress {
 			e.removeOldFilter(labelsMap, &filter)
@@ -175,36 +175,15 @@ func (e *Endpoint) applyL4PolicyLocked(labelsMap *LabelsMap, oldPolicy *policy.L
 	return nil
 }
 
-func getLabelsMap(owner Owner) (*LabelsMap, error) {
-	maxID, err := owner.GetCachedMaxLabelID()
-	if err != nil {
-		return nil, err
-	}
-
-	labelsMap := LabelsMap{}
+func getLabelsMap(owner Owner) (*policy.IdentityCache, error) {
+	labelsMap := policy.GetIdentityCache()
 
 	reservedIDs := policy.GetConsumableCache().GetReservedIDs()
 	var idx policy.NumericIdentity
 	for _, idx = range reservedIDs {
-		lbls, err := owner.GetCachedLabelList(idx)
-		if err != nil {
-			return nil, err
-		}
-		// Skip currently unused IDs
+		lbls := owner.GetCachedLabelList(idx)
 		if lbls == nil || len(lbls) == 0 {
-			continue
-		}
-		labelsMap[idx] = lbls
-	}
-
-	for idx = policy.MinimalNumericIdentity; idx < maxID; idx++ {
-		lbls, err := owner.GetCachedLabelList(idx)
-		if err != nil {
-			return nil, err
-		}
-		// Skip currently unused IDs
-		if lbls == nil || len(lbls) == 0 {
-			continue
+			return nil, fmt.Errorf("unable to resolve reserved identity")
 		}
 		labelsMap[idx] = lbls
 	}
@@ -235,7 +214,7 @@ func (e *Endpoint) resolveL4Policy(owner Owner, repo *policy.Repository, c *poli
 }
 
 // Must be called with global endpoint.Mutex held
-func (e *Endpoint) regenerateConsumable(owner Owner, labelsMap *LabelsMap, repo *policy.Repository, c *policy.Consumable) bool {
+func (e *Endpoint) regenerateConsumable(owner Owner, labelsMap *policy.IdentityCache, repo *policy.Repository, c *policy.Consumable) bool {
 	changed := false
 
 	// Mark all entries unused by denying them
@@ -666,7 +645,6 @@ func (e *Endpoint) SetIdentity(owner Owner, id *policy.Identity) {
 		cache.Remove(e.Consumable)
 	}
 	e.SecLabel = id
-	e.LabelsHash = e.SecLabel.Labels.SHA256Sum()
 	e.Consumable = cache.GetOrCreate(id.ID, id)
 
 	// Sets endpoint state to ready if was waiting for identity

@@ -19,7 +19,6 @@ import (
 	"time"
 
 	"github.com/cilium/cilium/common/types"
-	"github.com/cilium/cilium/pkg/policy"
 
 	log "github.com/sirupsen/logrus"
 )
@@ -35,10 +34,7 @@ type KVClient interface {
 	GetMaxID(key string, firstID uint32) (uint32, error)
 	SetMaxID(key string, firstID, maxID uint32) error
 
-	GASNewSecLabelID(baseKeyPath string, baseID uint32, secCtxLabels *policy.Identity) error
 	GASNewL3n4AddrID(basePath string, baseID uint32, lAddrID *types.L3n4AddrID) error
-
-	GetWatcher(key string, timeSleep time.Duration) <-chan []policy.NumericIdentity
 	// END Obsolete API
 
 	// Status returns the status of he kvstore client including an
@@ -109,6 +105,9 @@ const (
 
 	// CapabilityDeleteOnZeroCount is true if DeleteOnZeroCount is functional
 	CapabilityDeleteOnZeroCount Capabilities = 1 << 1
+
+	// BaseKeyPrefix is the base prefix that should be used for all keys
+	BaseKeyPrefix = "cilium"
 )
 
 // Get returns value of key

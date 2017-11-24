@@ -612,8 +612,6 @@ func runDaemon() {
 		log.WithError(err).Fatal("Error while enabling containerd event watcher")
 	}
 
-	d.EnableKVStoreWatcher(30 * time.Second)
-
 	if err := d.EnableK8sWatcher(5 * time.Minute); err != nil {
 		log.WithError(err).Warn("Error while enabling k8s watcher")
 	}
@@ -655,8 +653,8 @@ func runDaemon() {
 	api.EndpointGetEndpointIDLogHandler = NewGetEndpointIDLogHandler(d)
 
 	// /identity/
-	api.PolicyGetIdentityHandler = NewGetIdentityHandler(d)
-	api.PolicyGetIdentityIDHandler = NewGetIdentityIDHandler(d)
+	api.PolicyGetIdentityHandler = newGetIdentityHandler(d)
+	api.PolicyGetIdentityIDHandler = newGetIdentityIDHandler(d)
 
 	// /policy/
 	api.PolicyGetPolicyHandler = newGetPolicyHandler(d)

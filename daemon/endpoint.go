@@ -16,7 +16,6 @@ package main
 
 import (
 	"bytes"
-	"fmt"
 	"os"
 
 	"github.com/cilium/cilium/api/v1/models"
@@ -337,12 +336,13 @@ func (d *Daemon) deleteEndpoint(ep *endpoint.Endpoint) int {
 		return 0
 	}
 
-	sha256sum := ep.OpLabels.IdentityLabels().SHA256Sum()
-	if err := d.DeleteIdentityBySHA256(sha256sum, ep.StringID()); err != nil {
-		log.WithError(err).WithFields(log.Fields{
-			logfields.SHA:            sha256sum,
-			logfields.IdentityLabels: ep.OpLabels.IdentityLabels(),
-		}).Error("Error while deleting labels")
+	if ep.SecLabel != nil {
+		if err := ep.SecLabel.Release(); err != nil {
+			log.WithError(err).WithFields(log.Fields{logfields.Identity: ep.SecLabel.ID}).
+				Error("Unable to release identity of endpoint")
+		}
+
+		ep.SecLabel = nil
 	}
 
 	var errors int
@@ -583,79 +583,8 @@ func (d *Daemon) UpdateSecLabels(id string, add, del labels.Labels) middleware.R
 		return NewPutEndpointIDLabelsNotFound()
 	}
 
-	// This is safe only if no other goroutine may change the labels in parallel
-	ep.Mutex.RLock()
-	oldLabels := ep.OpLabels.DeepCopy()
-	ep.Mutex.RUnlock()
-
-	if len(delLabels) > 0 {
-		for k := range delLabels {
-			// The change request is accepted if the label is on
-			// any of the lists. If the label is already disabled,
-			// we will simply ignore that change.
-			if oldLabels.OrchestrationIdentity[k] != nil ||
-				oldLabels.Custom[k] != nil ||
-				oldLabels.Disabled[k] != nil {
-				break
-			}
-
-			return apierror.New(PutEndpointIDLabelsLabelNotFoundCode,
-				"label %s not found", k)
-		}
-	}
-
-	if len(delLabels) > 0 {
-		for k, v := range delLabels {
-			if oldLabels.OrchestrationIdentity[k] != nil {
-				delete(oldLabels.OrchestrationIdentity, k)
-				oldLabels.Disabled[k] = v
-			}
-
-			if oldLabels.Custom[k] != nil {
-				delete(oldLabels.Custom, k)
-			}
-		}
-	}
-
-	if len(addLabels) > 0 {
-		for k, v := range addLabels {
-			if oldLabels.Disabled[k] != nil {
-				delete(oldLabels.Disabled, k)
-				oldLabels.OrchestrationIdentity[k] = v
-			} else if oldLabels.OrchestrationIdentity[k] == nil {
-				oldLabels.Custom[k] = v
-			}
-		}
-	}
-
-	identity, newHash, err2 := d.updateEndpointIdentity(ep.StringID(), ep.LabelsHash, oldLabels)
-	if err2 != nil {
-		return apierror.Error(PutEndpointIDLabelsUpdateFailedCode, err2)
-	}
-
-	ep.Mutex.Lock()
-	if ep.GetStateLocked() == endpoint.StateDisconnected {
-		ep.Mutex.Unlock()
-		if err := d.DeleteIdentity(identity.ID, ep.StringID()); err != nil {
-			log.WithFields(log.Fields{
-				logfields.EndpointID: ep.StringID(),
-				logfields.Identity:   identity.ID,
-			}).WithError(err).Warn("Unable to release temporary identity")
-		}
-		return NewPutEndpointIDLabelsNotFound()
-	}
-
-	ep.LabelsHash = newHash
-	ep.OpLabels = *oldLabels
-	ep.SetIdentity(d, identity)
-	ready := ep.SetStateLocked(endpoint.StateWaitingToRegenerate, "Triggering regeneration due to updated security labels")
-	if ready {
-		ep.ForcePolicyCompute()
-	}
-	ep.Mutex.Unlock()
-
-	if ready {
-		ep.Regenerate(d, "updated security labels")
+	if err := ep.ModifyIdentityLabels(d, addLabels, delLabels); err != nil {
+		return apierror.New(PutEndpointIDLabelsLabelNotFoundCode, err.Error())
 	}
 
 	return nil
@@ -684,63 +613,4 @@ func (h *putEndpointIDLabels) Handle(params PutEndpointIDLabelsParams) middlewar
 	}
 
 	return NewPutEndpointIDLabelsOK()
-}
-
-// EndpointLabelsUpdate is called periodically to sync the labels of an
-// endpoint. Calls to this function do not necessarily mean that the labels
-// actually changed. The container runtime layer will periodically synchronize
-// labels
-// The responsibility of this function is to:
-//  - resolve the identity and update the endpoint
-//  - trigger endpoint regeneration if required
-//  - trigger policy regeneration if required
-func (d *Daemon) EndpointLabelsUpdate(ep *endpoint.Endpoint, identityLabels, infoLabels labels.Labels) error {
-	log.WithFields(log.Fields{
-		logfields.ContainerID:    ep.GetShortContainerID(),
-		logfields.EndpointID:     ep.StringID(),
-		logfields.IdentityLabels: identityLabels.String(),
-		"infoLabels":             infoLabels.String(),
-	}).Debug("Updating labels of endpoint")
-
-	ep.UpdateOrchInformationLabels(infoLabels)
-	ep.UpdateOrchIdentityLabels(identityLabels)
-
-	// It's mandatory to update the endpoint identity in the KVStore.  This
-	// way we keep the RefCount refreshed and the SecurityLabelID will not
-	// be considered unused.
-	identity, newHash, err := d.updateEndpointIdentity(ep.StringID(), ep.LabelsHash, &ep.OpLabels)
-	if err != nil {
-		return fmt.Errorf("Unable to update identity of endpoint")
-	}
-
-	// Set identity labels and identity associating while holding endpoint
-	// lock never have a disconnect between labels and identity.
-	ep.Mutex.Lock()
-
-	// Endpoint might have transitioned to disconnected state. If
-	// disconnected, do not associate the identity with the endpoint and
-	// release it again
-	if ep.GetStateLocked() == endpoint.StateDisconnected {
-		ep.Mutex.Unlock()
-		if err := d.DeleteIdentity(identity.ID, ep.StringID()); err != nil {
-			log.WithFields(log.Fields{
-				logfields.EndpointID: ep.StringID(),
-				logfields.Identity:   identity.ID,
-			}).WithError(err).Warn("Unable to release temporary identity")
-		}
-
-		return fmt.Errorf("Endpoint is disconnected, aborting label update handler")
-	}
-
-	ep.LabelsHash = newHash
-	oldIdentity := ep.GetIdentity()
-	ep.SetIdentity(d, identity)
-	ep.Mutex.Unlock()
-
-	// Skip building endpoint if identity is invalid or unchanged
-	if identity.ID != oldIdentity {
-		// Triggers policy updates on all endpoints
-		d.TriggerPolicyUpdates(true)
-	}
-	return nil
 }

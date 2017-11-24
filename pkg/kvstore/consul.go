@@ -27,7 +27,6 @@ import (
 	"github.com/cilium/cilium/common"
 	"github.com/cilium/cilium/common/types"
 	"github.com/cilium/cilium/pkg/logfields"
-	"github.com/cilium/cilium/pkg/policy"
 
 	consulAPI "github.com/hashicorp/consul/api"
 	log "github.com/sirupsen/logrus"
@@ -303,76 +302,6 @@ func (c *consulClient) SetMaxID(key string, firstID, maxID uint32) error {
 }
 
 // FIXME: Obsolete, remove
-func (c *consulClient) setMaxLabelID(maxID uint32) error {
-	return c.SetMaxID(common.LastFreeLabelIDKeyPath, uint32(policy.MinimalNumericIdentity), maxID)
-}
-
-// FIXME: Obsolete, remove
-func (c *consulClient) GASNewSecLabelID(basePath string, baseID uint32, pI *policy.Identity) error {
-	setID2Label := func(new_id uint32) error {
-		pI.ID = policy.NumericIdentity(new_id)
-		keyPath := path.Join(basePath, pI.ID.StringID())
-		if err := c.SetValue(keyPath, pI); err != nil {
-			return err
-		}
-		return c.setMaxLabelID(new_id + 1)
-	}
-
-	session, _, err := c.Session().CreateNoChecks(nil, nil)
-	if err != nil {
-		return err
-	}
-
-	acquireFreeID := func(firstID uint32, incID *uint32) (bool, error) {
-		keyPath := path.Join(basePath, strconv.FormatUint(uint64(*incID), 10))
-
-		lockPair := &consulAPI.KVPair{Key: getLockPath(keyPath), Session: session}
-		acq, _, err := c.KV().Acquire(lockPair, nil)
-		if err != nil {
-			return false, err
-		}
-		defer c.KV().Release(lockPair, nil)
-
-		if acq {
-			value, err := c.GetValue(keyPath)
-			if err != nil {
-				return false, err
-			}
-			if value == nil {
-				return false, setID2Label(*incID)
-			}
-			var consulLabels policy.Identity
-			if err := json.Unmarshal(value, &consulLabels); err != nil {
-				return false, err
-			}
-			if consulLabels.RefCount() == 0 {
-				log.WithField(logfields.Identity, *incID).Info("Recycling ID")
-				return false, setID2Label(*incID)
-			}
-		}
-
-		*incID++
-		if *incID > common.MaxSetOfLabels {
-			*incID = policy.MinimalNumericIdentity.Uint32()
-		}
-		if firstID == *incID {
-			return false, fmt.Errorf("reached maximum set of labels available")
-		}
-		return true, nil
-	}
-
-	beginning := baseID
-	for {
-		retry, err := acquireFreeID(beginning, &baseID)
-		if err != nil {
-			return err
-		} else if !retry {
-			return nil
-		}
-	}
-}
-
-// FIXME: Obsolete, remove
 func (c *consulClient) setMaxL3n4AddrID(maxID uint32) error {
 	return c.SetMaxID(common.LastFreeServiceIDKeyPath, common.FirstFreeServiceID, maxID)
 }
@@ -523,45 +452,6 @@ func (c *consulClient) Watch(w *Watcher) {
 			return
 		}
 	}
-}
-
-// GetWatcher watches for kvstore changes in the given key. Triggers the returned channel
-// every time the key path is changed.
-// FIXME This function is highly tightened to the maxFreeID, change name accordingly
-//
-// FIXME: Obsolete, remove
-func (c *consulClient) GetWatcher(key string, timeSleep time.Duration) <-chan []policy.NumericIdentity {
-	ch := make(chan []policy.NumericIdentity, 100)
-	go func(ch chan []policy.NumericIdentity) {
-		curSeconds := time.Second
-		var (
-			k   *consulAPI.KVPair
-			q   *consulAPI.QueryMeta
-			qo  consulAPI.QueryOptions
-			err error
-		)
-		for {
-			k, q, err = c.KV().Get(key, &qo)
-			if err != nil {
-				log.WithError(err).Error("Unable to retrieve last free Index")
-			}
-			if k == nil || q == nil {
-				log.Warn("Unable to retrieve last free Index, please start some containers with labels")
-				time.Sleep(curSeconds)
-				if curSeconds < timeSleep {
-					curSeconds += time.Second
-				}
-				continue
-			}
-			curSeconds = time.Second
-			qo.WaitIndex = q.LastIndex
-			maxFreeID := uint32(0)
-			if err := json.Unmarshal(k.Value, &maxFreeID); err == nil {
-				ch <- []policy.NumericIdentity{policy.NumericIdentity(maxFreeID)}
-			}
-		}
-	}(ch)
-	return ch
 }
 
 func (c *consulClient) Status() (string, error) {

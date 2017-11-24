@@ -96,9 +96,6 @@ type Daemon struct {
 	policy            *policy.Repository
 	preFilter         *policy.PreFilter
 
-	maxCachedLabelIDMU lock.RWMutex
-	maxCachedLabelID   policy.NumericIdentity
-
 	uniqueIDMU lock.Mutex
 	uniqueID   map[uint64]bool
 
@@ -923,6 +920,7 @@ func NewDaemon(c *Config) (*Daemon, error) {
 		compilationMutex:  new(lock.RWMutex),
 	}
 
+	policy.InitIdentityAllocator(&d)
 	workloads.Init(&d)
 
 	// Clear previous leftovers before listening for new requests

@@ -38,6 +38,9 @@ const (
 	// IdentityLabels are the labels relevant for the security identity
 	IdentityLabels = "identityLabels"
 
+	// InfoLabels are the labels relevant for the security identity
+	InfoLabels = "infoLabels"
+
 	// Labels are any label, they may not be relevant to the security identity.
 	Labels = "labels"
 

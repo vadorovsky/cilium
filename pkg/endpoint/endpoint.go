@@ -30,6 +30,7 @@ import (
 	"github.com/cilium/cilium/common/addressing"
 	"github.com/cilium/cilium/pkg/bpf"
 	"github.com/cilium/cilium/pkg/byteorder"
+	"github.com/cilium/cilium/pkg/labels"
 	pkgLabels "github.com/cilium/cilium/pkg/labels"
 	"github.com/cilium/cilium/pkg/lock"
 	"github.com/cilium/cilium/pkg/logfields"
@@ -72,6 +73,12 @@ const (
 	DefaultEnforcement        = "default"
 
 	maxLogs = 256
+
+	// maxResolutionRetries is the number of attempts to resolve the identity
+	maxResolutionRetries = 16
+
+	// baseResolutionInterval is the starting interval to re-attempt
+	baseResolutionInterval = time.Second * 2
 )
 
 var (
@@ -191,9 +198,6 @@ const (
 	PolicyGlobalMapName = "cilium_policy"
 )
 
-// LabelsMap holds mapping from numeric policy identity to labels
-type LabelsMap map[policy.NumericIdentity]pkgLabels.LabelArray
-
 // Endpoint represents a container or similar which can be individually
 // addresses on L3 with its own IP addresses. This structured is managed by the
 // endpoint manager in pkg/endpointmanager.
@@ -237,6 +241,10 @@ type Endpoint struct {
 	// FIXME: Rename this field to Labels
 	OpLabels pkgLabels.OpLabels
 
+	// identityRevision is incremented each time the identity label
+	// information of the endpoint has changed
+	identityRevision int
+
 	// LXCMAC is the MAC address of the endpoint
 	//
 	// FIXME: Rename this field to MAC
@@ -260,7 +268,7 @@ type Endpoint struct {
 	LabelsHash string
 
 	// LabelsMap is the Set of all security labels used in the last policy computation
-	LabelsMap *LabelsMap
+	LabelsMap *policy.IdentityCache
 
 	// PortMap is port mapping configuration of the endpoint
 	PortMap []PortMap // Port mapping used for this endpoint.
@@ -522,9 +530,7 @@ func (e *Endpoint) GetLabelsSHA() string {
 		return ""
 	}
 
-	e.SecLabel.LabelsSHA256 = e.SecLabel.Labels.SHA256Sum()
-
-	return e.SecLabel.LabelsSHA256
+	return e.SecLabel.GetLabelsSHA256()
 }
 
 // GetIPv4Address returns the IPv4 address of the endpoint
@@ -1080,9 +1086,7 @@ func (e *Endpoint) HasLabels(l pkgLabels.Labels) bool {
 	return true
 }
 
-// UpdateOrchInformationLabels updates orchestration labels for the endpoint which
-// are not used in determining the security identity for the endpoint.
-func (e *Endpoint) UpdateOrchInformationLabels(l pkgLabels.Labels) {
+func (e *Endpoint) replaceInformationLabels(l pkgLabels.Labels) {
 	e.Mutex.Lock()
 	for k, v := range l {
 		tmp := v.DeepCopy()
@@ -1092,11 +1096,10 @@ func (e *Endpoint) UpdateOrchInformationLabels(l pkgLabels.Labels) {
 	e.Mutex.Unlock()
 }
 
-// UpdateOrchIdentityLabels updates orchestration labels for the endpoint which
-// are used in determining the security identity for the endpoint.
-//
-// Note: Must be called with endpoint.Mutex held!
-func (e *Endpoint) UpdateOrchIdentityLabels(l pkgLabels.Labels) bool {
+// replaceIdentityLabels replaces the identity labels of an endpoint. If a net
+// changed occurred, the identityRevision is bumped and return, otherwise 0 is
+// returned.
+func (e *Endpoint) replaceIdentityLabels(l pkgLabels.Labels) int {
 	e.Mutex.Lock()
 	changed := false
 
@@ -1122,9 +1125,16 @@ func (e *Endpoint) UpdateOrchIdentityLabels(l pkgLabels.Labels) bool {
 	if e.OpLabels.OrchestrationIdentity.DeleteMarked() || e.OpLabels.Disabled.DeleteMarked() {
 		changed = true
 	}
+
+	rev := 0
+	if changed {
+		e.identityRevision++
+		rev = e.identityRevision
+	}
+
 	e.Mutex.Unlock()
 
-	return changed
+	return rev
 }
 
 // LeaveLocked removes the endpoint's directory from the system. Must be called
@@ -1382,4 +1392,197 @@ func (e *Endpoint) bumpPolicyRevision(revision uint64) {
 		e.updateLogger()
 	}
 	e.Mutex.Unlock()
+}
+
+// ModifyIdentityLabels changes the identity relevant labels of an endpoint.
+// labels can be added or deleted. If a net label changed is performed, the
+// endpoint will receive a new identity and will be regenerated. Both of these
+// operations will happen in the background.
+func (e *Endpoint) ModifyIdentityLabels(owner Owner, addLabels, delLabels labels.Labels) error {
+	e.Mutex.Lock()
+	newLabels := e.OpLabels.DeepCopy()
+
+	if len(delLabels) > 0 {
+		for k := range delLabels {
+			// The change request is accepted if the label is on
+			// any of the lists. If the label is already disabled,
+			// we will simply ignore that change.
+			if newLabels.OrchestrationIdentity[k] != nil ||
+				newLabels.Custom[k] != nil ||
+				newLabels.Disabled[k] != nil {
+				break
+			}
+
+			return fmt.Errorf("label %s not found", k)
+		}
+	}
+
+	if len(delLabels) > 0 {
+		for k, v := range delLabels {
+			if newLabels.OrchestrationIdentity[k] != nil {
+				delete(newLabels.OrchestrationIdentity, k)
+				newLabels.Disabled[k] = v
+			}
+
+			if newLabels.Custom[k] != nil {
+				delete(newLabels.Custom, k)
+			}
+		}
+	}
+
+	if len(addLabels) > 0 {
+		for k, v := range addLabels {
+			if newLabels.Disabled[k] != nil {
+				delete(newLabels.Disabled, k)
+				newLabels.OrchestrationIdentity[k] = v
+			} else if newLabels.OrchestrationIdentity[k] == nil {
+				newLabels.Custom[k] = v
+			}
+		}
+	}
+
+	e.OpLabels = *newLabels
+
+	// Mark with StateWaitingForIdentity, it will be set to
+	// StateWaitingToRegenerate after the identity resolution has been
+	// completed
+	e.SetStateLocked(StateWaitingForIdentity, "Triggering identity resolution due to updated security labels")
+
+	e.identityRevision++
+	rev := e.identityRevision
+	e.Mutex.Unlock()
+
+	go e.identityLabelsChanged(owner, rev)
+
+	return nil
+}
+
+// UpdateLabels is called to update the labels of an endpoint. Calls to this
+// function do not necessarily mean that the labels actually changed. The
+// container runtime layer will periodically synchronize labels.
+//
+// If a net label changed was performed, the endpoint will receive a new
+// identity and will be regenerated. Both of these operations will happen in
+// the background.
+func (e *Endpoint) UpdateLabels(owner Owner, identityLabels, infoLabels labels.Labels) {
+	log.WithFields(log.Fields{
+		logfields.ContainerID:    e.GetShortContainerID(),
+		logfields.EndpointID:     e.StringID(),
+		logfields.IdentityLabels: identityLabels.String(),
+		logfields.InfoLabels:     infoLabels.String(),
+	}).Debug("Refreshing labels of endpoint")
+
+	e.replaceInformationLabels(infoLabels)
+
+	// replace identity labels and update the identity if labels have changed
+	if rev := e.replaceIdentityLabels(identityLabels); rev != 0 {
+		go e.identityLabelsChanged(owner, rev)
+	}
+}
+
+func (e *Endpoint) identityResolutionIsObsolete(myChangeRev int) bool {
+	// If in disconnected state, skip as well as this operation is no
+	// longer required.
+	if e.state == StateDisconnected {
+		return true
+	}
+
+	// Check if the endpoint has since received a new identity revision, if
+	// so, abort as a new resolution routine will have been started.
+	if myChangeRev != e.identityRevision {
+		return true
+	}
+
+	return false
+}
+
+func (e *Endpoint) identityLabelsChanged(owner Owner, myChangeRev int) {
+	e.Mutex.RLock()
+	newLabels := e.OpLabels.IdentityLabels()
+	elog := log.WithFields(log.Fields{
+		logfields.EndpointID:     e.ID,
+		logfields.IdentityLabels: newLabels,
+	})
+	e.Mutex.RUnlock()
+
+	attempt := 0
+retry:
+	attempt++
+
+	e.Mutex.RLock()
+	if e.identityResolutionIsObsolete(myChangeRev) {
+		e.Mutex.RUnlock()
+		elog.Debug("Endpoint identity has changed, aborting resolution routine in favour of new one")
+		return
+	}
+
+	if e.SecLabel != nil && string(e.SecLabel.Labels.SortedList()) != string(newLabels.SortedList()) {
+		e.Mutex.RUnlock()
+		elog.Debug("Endpoint labels unchanged, skipping resolution of identity")
+		return
+	}
+
+	// Unlock the endpoint mutex for the possibly long lasting kvstore operation
+	e.Mutex.RUnlock()
+	elog.Debug("Resolving identity for labels")
+
+	identity, _, err := policy.AllocateIdentity(newLabels)
+	if err != nil {
+		if attempt > maxResolutionRetries {
+			msg := "Permanent failure in resolving identity of endpoint, aborting"
+			e.LogStatus(Other, Failure, msg)
+			elog.WithError(err).Error("Permanent failure in resolving identity of endpoint, aborting")
+			return
+		}
+
+		msg := "Temporary error resolving endpoint identity, retrying..."
+		e.LogStatus(Other, Warning, msg)
+		elog.WithError(err).Warn(msg)
+
+		time.Sleep(baseResolutionInterval * time.Duration(attempt))
+		goto retry
+	}
+
+	e.Mutex.Lock()
+
+	if e.identityResolutionIsObsolete(myChangeRev) {
+		e.Mutex.Unlock()
+
+		if err := identity.Release(); err != nil {
+			// non fatal error as keys will expire after lease expires but log it
+			elog.WithFields(log.Fields{logfields.Identity: identity.ID}).
+				WithError(err).Warn("Unable to release newly allocated identity again")
+		}
+
+		return
+	}
+
+	// If endpoint has an old identity, defer release of it to the end of
+	// the function after the endpoint structured has been unlocked again
+	if e.SecLabel != nil {
+		oldIdentity := e.SecLabel
+		defer func() {
+			if err := oldIdentity.Release(); err != nil {
+				elog.WithFields(log.Fields{logfields.Identity: oldIdentity.ID}).
+					WithError(err).Warn("BUG: Unable to release old endpoint identity")
+			}
+		}()
+	}
+
+	elog.WithFields(log.Fields{logfields.Identity: identity.StringID()}).
+		Debug("Assigned new identity to endpoint")
+
+	e.SetIdentity(owner, identity)
+
+	ready := e.SetStateLocked(StateWaitingToRegenerate, "Triggering regeneration due to new identity")
+	if ready {
+		e.ForcePolicyCompute()
+	}
+
+	e.Mutex.Unlock()
+
+	if ready {
+		e.Regenerate(owner, "updated security labels")
+	}
+
 }

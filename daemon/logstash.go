@@ -103,8 +103,8 @@ func (d *Daemon) EnableLogstash(LogstashAddr string, refreshTime int) {
 }
 
 func (d *Daemon) getInlineLabelStr(id policy.NumericIdentity) string {
-	l, err := d.GetCachedLabelList(id)
-	if err != nil {
+	l := d.GetCachedLabelList(id)
+	if l == nil {
 		return ""
 	}
 	inlineLblSlice := []string{}

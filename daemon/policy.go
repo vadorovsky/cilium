@@ -38,28 +38,18 @@ import (
 )
 
 // GetCachedLabelList returns the cached labels for the given identity.
-func (d *Daemon) GetCachedLabelList(ID policy.NumericIdentity) (labels.LabelArray, error) {
+func (d *Daemon) GetCachedLabelList(ID policy.NumericIdentity) labels.LabelArray {
 	// Check if we have the source security context in our local
 	// consumable cache
 	if c := policy.GetConsumableCache().Lookup(ID); c != nil {
-		return c.LabelArray, nil
+		return c.LabelArray
 	}
 
-	// No cache entry or labels not available, do full lookup of labels
-	// via KV store
-	lbls, err := d.LookupIdentity(ID)
-	if err != nil {
-		return nil, err
+	if identity := policy.LookupIdentityByID(ID); identity != nil {
+		return identity.Labels.ToSlice()
 	}
 
-	// ID is not associated with anything, skip...
-	if lbls == nil {
-		return nil, nil
-	}
-
-	l := lbls.Labels.ToSlice()
-
-	return l, nil
+	return nil
 }
 
 // TriggerPolicyUpdates triggers policy updates for every daemon's endpoint.
@@ -410,10 +400,7 @@ func (d *Daemon) PolicyInit() error {
 		lbl := labels.NewLabel(
 			key, "", labels.LabelSourceReserved,
 		)
-		secLbl := policy.NewIdentity()
-		secLbl.ID = v
-		secLbl.AssociateEndpoint(lbl.String())
-		secLbl.Labels[k] = lbl
+		secLbl := policy.NewIdentity(v, labels.Labels{k: lbl})
 
 		policyMapPath := bpf.MapPath(fmt.Sprintf("%sreserved_%d", policymap.MapName, int(v)))
 

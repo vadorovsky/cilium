@@ -15,12 +15,21 @@
 package main
 
 import (
+	"io/ioutil"
+	"os"
+	"path/filepath"
 	"runtime"
 	"testing"
+	"time"
 
+	"github.com/cilium/cilium/common"
+	"github.com/cilium/cilium/daemon/options"
+	"github.com/cilium/cilium/pkg/endpoint"
 	e "github.com/cilium/cilium/pkg/endpoint"
+	"github.com/cilium/cilium/pkg/kvstore"
 	"github.com/cilium/cilium/pkg/labels"
 	"github.com/cilium/cilium/pkg/lock"
+	"github.com/cilium/cilium/pkg/option"
 	"github.com/cilium/cilium/pkg/policy"
 
 	. "gopkg.in/check.v1"
@@ -38,9 +47,8 @@ type DaemonSuite struct {
 	OnEnableEndpointPolicyEnforcement func(e *e.Endpoint) bool
 	OnPolicyEnforcement               func() string
 	OnAlwaysAllowLocalhost            func() bool
-	OnGetCachedLabelList              func(id policy.NumericIdentity) (labels.LabelArray, error)
+	OnGetCachedLabelList              func(id policy.NumericIdentity) labels.LabelArray
 	OnGetPolicyRepository             func() *policy.Repository
-	OnGetCachedMaxLabelID             func() (policy.NumericIdentity, error)
 	OnUpdateProxyRedirect             func(e *e.Endpoint, l4 *policy.L4Filter) (uint16, error)
 	OnRemoveProxyRedirect             func(e *e.Endpoint, l4 *policy.L4Filter) error
 	OnGetStateDir                     func() string
@@ -52,7 +60,73 @@ type DaemonSuite struct {
 	OnGetCompilationLock              func() *lock.RWMutex
 }
 
-var _ = Suite(&DaemonSuite{})
+func (ds *DaemonSuite) SetUpTest(c *C) {
+	time.Local = time.UTC
+	tempRunDir, err := ioutil.TempDir("", "cilium-test-run")
+	c.Assert(err, IsNil)
+	err = os.Mkdir(filepath.Join(tempRunDir, "globals"), 0777)
+	c.Assert(err, IsNil)
+
+	daemonConf := &Config{
+		DryMode: true,
+		Opts:    option.NewBoolOptions(&options.Library),
+	}
+	daemonConf.RunDir = tempRunDir
+	daemonConf.StateDir = tempRunDir
+	// Get the default labels prefix filter
+	err = labels.ParseLabelPrefixCfg(nil, "")
+	c.Assert(err, IsNil)
+	daemonConf.Opts.Set(endpoint.OptionDropNotify, true)
+	daemonConf.Opts.Set(endpoint.OptionTraceNotify, true)
+	daemonConf.Device = "undefined"
+
+	d, err := NewDaemon(daemonConf)
+	c.Assert(err, IsNil)
+	ds.d = d
+	kvstore.DeletePrefix(common.OperationalPath)
+	kvstore.DeletePrefix(kvstore.BaseKeyPrefix)
+
+	policy.InitIdentityAllocator(d)
+
+}
+
+func (ds *DaemonSuite) TearDownTest(c *C) {
+	if ds.d != nil {
+		os.RemoveAll(ds.d.conf.RunDir)
+	}
+	kvstore.DeletePrefix(common.OperationalPath)
+	kvstore.DeletePrefix(kvstore.BaseKeyPrefix)
+}
+
+type DaemonEtcdSuite struct {
+	DaemonSuite
+}
+
+var _ = Suite(&DaemonEtcdSuite{})
+
+func (e *DaemonEtcdSuite) SetUpTest(c *C) {
+	kvstore.SetupDummy("etcd")
+	e.DaemonSuite.SetUpTest(c)
+}
+
+func (e *DaemonEtcdSuite) TearDownTest(c *C) {
+	e.DaemonSuite.TearDownTest(c)
+}
+
+type DaemonConsulSuite struct {
+	DaemonSuite
+}
+
+var _ = Suite(&DaemonConsulSuite{})
+
+func (e *DaemonConsulSuite) SetUpTest(c *C) {
+	kvstore.SetupDummy("consul")
+	e.DaemonSuite.SetUpTest(c)
+}
+
+func (e *DaemonConsulSuite) TearDownTest(c *C) {
+	e.DaemonSuite.TearDownTest(c)
+}
 
 func (ds *DaemonSuite) TestMiniumWorkerThreadsIsSet(c *C) {
 	c.Assert(numWorkerThreads() >= 4, Equals, true)
@@ -102,7 +176,7 @@ func (ds *DaemonSuite) AlwaysAllowLocalhost() bool {
 	panic("AlwaysAllowLocalhost should not have been called")
 }
 
-func (ds *DaemonSuite) GetCachedLabelList(id policy.NumericIdentity) (labels.LabelArray, error) {
+func (ds *DaemonSuite) GetCachedLabelList(id policy.NumericIdentity) labels.LabelArray {
 	if ds.OnGetCachedLabelList != nil {
 		return ds.OnGetCachedLabelList(id)
 	}
@@ -114,13 +188,6 @@ func (ds *DaemonSuite) GetPolicyRepository() *policy.Repository {
 		return ds.OnGetPolicyRepository()
 	}
 	panic("GetPolicyRepository should not have been called")
-}
-
-func (ds *DaemonSuite) GetCachedMaxLabelID() (policy.NumericIdentity, error) {
-	if ds.OnGetCachedMaxLabelID != nil {
-		return ds.OnGetCachedMaxLabelID()
-	}
-	panic("GetCachedMaxLabelID should not have been called")
 }
 
 func (ds *DaemonSuite) UpdateProxyRedirect(e *e.Endpoint, l4 *policy.L4Filter) (uint16, error) {
