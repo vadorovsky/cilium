@@ -15,22 +15,19 @@
 package kvstore
 
 import (
-	"strings"
-
 	log "github.com/sirupsen/logrus"
 )
 
-var (
-	// Debug enables kvstore tracing messages
-	//
-	// Debugging can be enabled at compile with:
-	// -ldflags "-X "github.com/cilium/cilium/pkg/kvstore".Debug=true"
-	Debug string
-)
+// SetupDummy sets up kvstore for tests
+func SetupDummy(dummyBackend string) {
+	module := findBackend(dummyBackend)
+	if module == nil {
+		log.Panicf("Unknown dummy kvstore backend %s", dummyBackend)
+	}
 
-// Trace is used to trace kvstore debug messages
-func Trace(format string, err error, fields log.Fields, a ...interface{}) {
-	if strings.ToLower(Debug) == "true" {
-		log.WithError(err).WithFields(fields).Debugf(format)
+	module.setDummyConfig()
+
+	if err := initClient(module); err != nil {
+		log.WithError(err).Panic("Unable to initialize kvstore client")
 	}
 }

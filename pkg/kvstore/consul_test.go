@@ -22,7 +22,18 @@ import (
 	"time"
 
 	consulAPI "github.com/hashicorp/consul/api"
+	. "gopkg.in/check.v1"
 )
+
+type ConsulSuite struct {
+	BaseTests
+}
+
+var _ = Suite(&ConsulSuite{})
+
+func (e *ConsulSuite) SetUpTest(c *C) {
+	SetupDummy("consul")
+}
 
 var handler http.HandlerFunc
 

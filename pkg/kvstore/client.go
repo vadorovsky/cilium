@@ -17,6 +17,8 @@ package kvstore
 import (
 	"fmt"
 
+	"github.com/cilium/cilium/common"
+
 	log "github.com/sirupsen/logrus"
 )
 
@@ -28,47 +30,26 @@ var (
 	leaseInstance interface{}
 )
 
-func initClient() error {
-	switch backend {
-	case Consul:
-		if consulConfig == nil {
-			return fmt.Errorf("mising consul server address, please specify, e.g. --kvstore-opt consul.address=127.0.0.1:8500")
-		}
-
-		c, err := newConsulClient(consulConfig)
-		if err != nil {
-			return err
-		}
-
-		log.Info("Using consul as key-value store")
-		clientInstance = c
-
-	case Etcd:
-		if etcdCfgPath == "" && etcdConfig == nil {
-			return fmt.Errorf("missing etcd endpoints; please specify , e.g. --kvstore-opt etcd.address=127.0.0.1:2379")
-		}
-
-		c, err := newEtcdClient(etcdConfig, etcdCfgPath)
-		if err != nil {
-			return err
-		}
-
-		log.Info("Using etcd as key-value store")
-		clientInstance = c
-
-	default:
-		panic("BUG: kvstore backend not specified")
+func initClient(module backendModule) error {
+	c, err := module.newClient()
+	if err != nil {
+		return err
 	}
+
+	log.Infof("Creating kvstore client for %s backend", module.getName())
+
+	// Clean-up old services path
+	c.DeletePrefix(common.ServicePathV1)
+
+	clientInstance = c
 
 	l, err := CreateLease(LeaseTTL)
 	if err != nil {
 		clientInstance = nil
 		return fmt.Errorf("Unable to create lease: %s", err)
 	}
-	leaseInstance = l
 
-	// Start go subroutine which will renew kvstore leases
-	startKeepalive()
+	leaseInstance = l
 
 	return nil
 }

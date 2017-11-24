@@ -173,4 +173,7 @@ const (
 
 	// K8sAPIVersion is the version of the k8s API an object has
 	K8sAPIVersion = "k8sApiVersion"
+
+	// Attempt is the attempt number if an operation is attempted multiple times
+	Attempt = "attempt"
 )

@@ -38,24 +38,29 @@ var (
 // CreateLease creates a new lease with the given ttl
 func CreateLease(ttl time.Duration) (interface{}, error) {
 	lease, err := Client().CreateLease(ttl)
-	trace("CreateLease", err, log.Fields{fieldTTL: ttl, fieldLease: lease})
+	Trace("CreateLease", err, log.Fields{fieldTTL: ttl, fieldLease: lease})
 	return lease, err
 }
 
 // KeepAlive keeps a lease created with CreateLease alive
 func KeepAlive(lease interface{}) error {
 	err := Client().KeepAlive(lease)
-	trace("KeepAlive", err, log.Fields{fieldLease: lease})
+	Trace("KeepAlive", err, log.Fields{fieldLease: lease})
 	return err
 }
 
-func startKeepalive() {
+func init() {
 	go func() {
-		sleepTime := KeepAliveInterval
+		// start with very short interval until client and lease appear
+		sleepTime := time.Duration(1) * time.Second
 		for {
-			if err := KeepAlive(leaseInstance); err != nil {
-				log.WithError(err).Warn("Unable to keep lease alive")
-				sleepTime = RetryInterval
+			if clientInstance != nil && leaseInstance != nil {
+				// once we have client and lease, keep alive in regular interval
+				sleepTime = KeepAliveInterval
+				if err := KeepAlive(leaseInstance); err != nil {
+					log.Warningf("Unable to keep lease alive: %s", err)
+					sleepTime = RetryInterval
+				}
 			}
 			time.Sleep(sleepTime)
 		}

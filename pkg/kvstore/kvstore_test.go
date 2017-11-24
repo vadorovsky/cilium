@@ -23,16 +23,3 @@ import (
 func Test(t *testing.T) {
 	TestingT(t)
 }
-
-type KVStoreSuite struct{}
-
-var _ = Suite(&KVStoreSuite{})
-
-func (s *KvstoreSuite) TestLock(c *C) {
-	DeleteTree("locktest/")
-
-	lock, err := LockPath("locktest/foo")
-	c.Assert(err, IsNil)
-	c.Assert(lock, Not(IsNil))
-	lock.Unlock()
-}

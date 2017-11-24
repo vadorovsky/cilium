@@ -25,10 +25,14 @@ import (
 )
 
 type EtcdSuite struct {
-	etcd EtcdClient
+	BaseTests
 }
 
 var _ = Suite(&EtcdSuite{})
+
+func (e *EtcdSuite) SetUpTest(c *C) {
+	SetupDummy("etcd")
+}
 
 type MaintenanceMocker struct {
 	OnAlarmList   func(ctx context.Context) (*etcdAPI.AlarmResponse, error)
@@ -106,10 +110,10 @@ func (s *EtcdSuite) TestETCDVersionCheck(c *C) {
 	cli, err := etcdAPI.New(cfg)
 	c.Assert(err, IsNil)
 	cli.Maintenance = mm
-	etcdClient := EtcdClient{
-		cli: cli,
+	client := etcdClient{
+		client: cli,
 	}
-	e := etcdClient.CheckMinVersion(1 * time.Second)
+	e := client.checkMinVersion(1 * time.Second)
 	c.Assert(e, IsNil)
 
 	// One endpoint has a bad version and should fail
@@ -117,10 +121,10 @@ func (s *EtcdSuite) TestETCDVersionCheck(c *C) {
 	cli, err = etcdAPI.New(cfg)
 	c.Assert(err, IsNil)
 	cli.Maintenance = mm
-	etcdClient = EtcdClient{
-		cli: cli,
+	client = etcdClient{
+		client: cli,
 	}
 
-	e = etcdClient.CheckMinVersion(1 * time.Second)
+	e = client.checkMinVersion(1 * time.Second)
 	c.Assert(e, NotNil)
 }

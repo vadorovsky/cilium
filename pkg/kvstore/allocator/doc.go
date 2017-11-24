@@ -12,25 +12,5 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package kvstore
-
-import (
-	"strings"
-
-	log "github.com/sirupsen/logrus"
-)
-
-var (
-	// Debug enables kvstore tracing messages
-	//
-	// Debugging can be enabled at compile with:
-	// -ldflags "-X "github.com/cilium/cilium/pkg/kvstore".Debug=true"
-	Debug string
-)
-
-// Trace is used to trace kvstore debug messages
-func Trace(format string, err error, fields log.Fields, a ...interface{}) {
-	if strings.ToLower(Debug) == "true" {
-		log.WithError(err).WithFields(fields).Debugf(format)
-	}
-}
+// Package allocator provides a kvstore based ID allocator
+package allocator

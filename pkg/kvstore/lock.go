@@ -33,45 +33,68 @@ func getLockPath(path string) string {
 
 // Lock is a lock return by LockPath
 type Lock struct {
-	path string
-	lock kvLocker
+	path       string
+	localMutex *lock.Mutex
+	lock       kvLocker
 }
 
 var (
-	lockPathsMU lock.Mutex
-	lockPaths   = map[string]*lock.Mutex{}
+	lockPathsMutex lock.RWMutex
+	localMutex     = map[string]*lock.Mutex{}
 )
 
-// LockPath locks the specified path and returns the Lock
-func LockPath(path string) (*Lock, error) {
-	lockPathsMU.Lock()
-	if lockPaths[path] == nil {
-		lockPaths[path] = &lock.Mutex{}
+func getLocalPathMutex(path string) *lock.Mutex {
+	lockPathsMutex.RLock()
+	if localMutex[path] != nil {
+		m := localMutex[path]
+		lockPathsMutex.RUnlock()
+		return m
 	}
-	lockPathsMU.Unlock()
+	lockPathsMutex.RUnlock()
 
-	trace("Creating lock", nil, log.Fields{fieldKey: path})
+	lockPathsMutex.Lock()
+	defer lockPathsMutex.Unlock()
 
-	// Take the local lock as both etcd and consul protect per client
-	lockPaths[path].Lock()
+	// We've unlocked the reader lock so check if another writer has come
+	// first in the meantime
+	if localMutex[path] == nil {
+		localMutex[path] = &lock.Mutex{}
+	}
+
+	return localMutex[path]
+}
+
+// LockPath locks the specified path. The key for the lock is not the path
+// provided itself but the path with a suffix of ".lock" appended. The lock
+// returned also contains a patch specific local Mutex which will be held.
+//
+// It is required to call Unlock() on the returned Lock to unlock
+func LockPath(path string) (*Lock, error) {
+	Trace("Creating lock", nil, log.Fields{fieldKey: path})
+
+	// Take the local lock as kvstore backends don't lock multiple local
+	// readers
+	localMutex := getLocalPathMutex(path)
+	localMutex.Lock()
 
 	lock, err := Client().LockPath(path)
 	if err != nil {
-		lockPaths[path].Unlock()
+		Trace("Unsuccessful lock", err, log.Fields{fieldKey: path})
+		localMutex.Unlock()
 		return nil, fmt.Errorf("Error while locking path %s: %s", path, err)
 	}
 
-	trace("Successful lock", nil, log.Fields{fieldKey: path})
-	return &Lock{lock: lock, path: path}, nil
+	Trace("Successful lock", nil, log.Fields{fieldKey: path})
+	return &Lock{lock: lock, localMutex: localMutex, path: path}, nil
 }
 
 // Unlock unlocks a lock
 func (l *Lock) Unlock() error {
 	err := l.lock.Unlock()
 
-	lockPaths[l.path].Unlock()
+	l.localMutex.Unlock()
 	if err == nil {
-		trace("Unlocked", nil, log.Fields{fieldKey: l.path})
+		Trace("Unlocked", nil, log.Fields{fieldKey: l.path})
 	}
 	return err
 }
