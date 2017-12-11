@@ -974,11 +974,27 @@ definitions:
         type: array
         items:
           type: string
+      ingress-source-rule-labels:
+        description: Labels of ingress L3 rules in effect on this endpoint
+        type: array
+        items:
+          type: string
+      ingress-source-rule-count:
+        description: count of ingress L3 rules in effect on this endpoint
+        type: integer
       egress:
         description: List of CIDR egress rules
         type: array
         items:
           type: string
+      egress-source-rule-labels:
+        description: Labels of egress L3 rules in effect on this endpoint
+        type: array
+        items:
+          type: string
+      egress-source-rule-count:
+        description: count of ingress L3 rules in effect on this endpoint
+        type: integer
   CIDRList:
     description: List of CIDRs
     type: object

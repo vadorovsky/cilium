@@ -164,6 +164,14 @@ func (l Labels) String() string {
 	return str
 }
 
+// AddFromLabelArray adds the labels in a LabelArray keyed by each label's
+// String representation
+func (l Labels) AddFromLabelArray(lbls LabelArray) {
+	for _, lbl := range lbls {
+		l[lbl.String()] = lbl
+	}
+}
+
 // MarkAllForDeletion marks all the labels with the DeletionMark.
 func (l Labels) MarkAllForDeletion() {
 	for k := range l {

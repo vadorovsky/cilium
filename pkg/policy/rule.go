@@ -19,6 +19,7 @@ import (
 	"net"
 
 	"github.com/cilium/cilium/pkg/ip"
+	"github.com/cilium/cilium/pkg/labels"
 	"github.com/cilium/cilium/pkg/logging/logfields"
 	"github.com/cilium/cilium/pkg/policy/api"
 
@@ -338,23 +339,29 @@ func (r *rule) resolveL3Policy(ctx *SearchContext, state *traceState, result *L3
 	state.selectRule(ctx, r)
 	found := 0
 
-	for _, r := range r.Ingress {
+	result.Ingress.SourceRuleLabels = make(labels.Labels)
+	for _, ingressRule := range r.Ingress {
 		// TODO (ianvernon): GH-1658
 		var allCIDRs []api.CIDR
-		allCIDRs = append(allCIDRs, r.FromCIDR...)
+		allCIDRs = append(allCIDRs, ingressRule.FromCIDR...)
 
-		allCIDRs = append(allCIDRs, computeResultantCIDRSet(r.FromCIDRSet)...)
+		allCIDRs = append(allCIDRs, computeResultantCIDRSet(ingressRule.FromCIDRSet)...)
 
 		found += mergeL3(ctx, "Ingress", allCIDRs, &result.Ingress)
+		result.Ingress.SourceRuleLabels.AddFromLabelArray(r.Rule.Labels)
+		result.Ingress.SourceRuleCount += 1
 	}
-	for _, r := range r.Egress {
+
+	for _, egressRule := range r.Egress {
 		// TODO(ianvernon): GH-1658
 		var allCIDRs []api.CIDR
-		allCIDRs = append(allCIDRs, r.ToCIDR...)
+		allCIDRs = append(allCIDRs, egressRule.ToCIDR...)
 
-		allCIDRs = append(allCIDRs, computeResultantCIDRSet(r.ToCIDRSet)...)
+		allCIDRs = append(allCIDRs, computeResultantCIDRSet(egressRule.ToCIDRSet)...)
 
 		found += mergeL3(ctx, "Egress", allCIDRs, &result.Egress)
+		result.Egress.SourceRuleLabels.AddFromLabelArray(r.Rule.Labels)
+		result.Egress.SourceRuleCount += 1
 	}
 
 	if found > 0 {

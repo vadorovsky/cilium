@@ -22,6 +22,7 @@ import (
 
 	"github.com/cilium/cilium/api/v1/models"
 	"github.com/cilium/cilium/pkg/byteorder"
+	"github.com/cilium/cilium/pkg/labels"
 	"github.com/cilium/cilium/pkg/maps/cidrmap"
 	"github.com/cilium/cilium/pkg/policy/api"
 )
@@ -32,9 +33,11 @@ import (
 // L3PolicyMap does no locking internally, so the user is responsible for synchronizing
 // between multiple threads when applicable.
 type L3PolicyMap struct {
-	Map       map[string]net.IPNet // Allowed L3 prefixes
-	IPv6Count int                  // Count of IPv6 prefixes in 'Map'
-	IPv4Count int                  // Count of IPv4 prefixes in 'Map'
+	Map              map[string]net.IPNet // Allowed L3 prefixes
+	IPv6Count        int                  // Count of IPv6 prefixes in 'Map'
+	IPv4Count        int                  // Count of IPv4 prefixes in 'Map'
+	SourceRuleLabels labels.Labels        // The User rule labels that resulted in this Map. Can be empty
+	SourceRuleCount  int64                // Number of rules that resulted in this Map
 }
 
 // Insert places 'cidr' in to map 'm'. Returns `1` if `cidr` is added
@@ -124,8 +127,14 @@ type L3Policy struct {
 // NewL3Policy creates a new L3Policy.
 func NewL3Policy() *L3Policy {
 	return &L3Policy{
-		Ingress: L3PolicyMap{Map: make(map[string]net.IPNet)},
-		Egress:  L3PolicyMap{Map: make(map[string]net.IPNet)},
+		Ingress: L3PolicyMap{
+			Map:              make(map[string]net.IPNet),
+			SourceRuleLabels: make(labels.Labels),
+			SourceRuleCount:  0},
+		Egress: L3PolicyMap{
+			Map:              make(map[string]net.IPNet),
+			SourceRuleLabels: make(labels.Labels),
+			SourceRuleCount:  0},
 	}
 }
 
@@ -146,8 +155,12 @@ func (l3 *L3Policy) GetModel() *models.CIDRPolicy {
 	}
 
 	return &models.CIDRPolicy{
-		Ingress: ingress,
-		Egress:  egress,
+		Ingress:                 ingress,
+		IngressSourceRuleLabels: l3.Ingress.SourceRuleLabels.GetModel(),
+		IngressSourceRuleCount:  l3.Ingress.SourceRuleCount,
+		Egress:                  egress,
+		EgressSourceRuleLabels:  l3.Egress.SourceRuleLabels.GetModel(),
+		EgressSourceRuleCount:   l3.Egress.SourceRuleCount,
 	}
 }
 
