@@ -20,13 +20,33 @@ type L4Policy struct {
 	// List of L4 egress rules
 	Egress []string `json:"egress"`
 
+	// count of ingress L4 rules in effect on this endpoint
+	EgressSourceRuleCount int64 `json:"egress-source-rule-count,omitempty"`
+
+	// Labels of egress L4 rules in effect on this endpoint
+	EgressSourceRuleLabels []string `json:"egress-source-rule-labels"`
+
 	// List of L4 ingress rules
 	Ingress []string `json:"ingress"`
+
+	// count of ingress L4 rules in effect on this endpoint
+	IngressSourceRuleCount int64 `json:"ingress-source-rule-count,omitempty"`
+
+	// Lables of ingres L4 rules in effect on this endpoint
+	IngressSourceRuleLabels []string `json:"ingress-source-rule-labels"`
 }
 
 /* polymorph L4Policy egress false */
 
+/* polymorph L4Policy egress-source-rule-count false */
+
+/* polymorph L4Policy egress-source-rule-labels false */
+
 /* polymorph L4Policy ingress false */
+
+/* polymorph L4Policy ingress-source-rule-count false */
+
+/* polymorph L4Policy ingress-source-rule-labels false */
 
 // Validate validates this l4 policy
 func (m *L4Policy) Validate(formats strfmt.Registry) error {
@@ -37,7 +57,17 @@ func (m *L4Policy) Validate(formats strfmt.Registry) error {
 		res = append(res, err)
 	}
 
+	if err := m.validateEgressSourceRuleLabels(formats); err != nil {
+		// prop
+		res = append(res, err)
+	}
+
 	if err := m.validateIngress(formats); err != nil {
+		// prop
+		res = append(res, err)
+	}
+
+	if err := m.validateIngressSourceRuleLabels(formats); err != nil {
 		// prop
 		res = append(res, err)
 	}
@@ -57,9 +87,27 @@ func (m *L4Policy) validateEgress(formats strfmt.Registry) error {
 	return nil
 }
 
+func (m *L4Policy) validateEgressSourceRuleLabels(formats strfmt.Registry) error {
+
+	if swag.IsZero(m.EgressSourceRuleLabels) { // not required
+		return nil
+	}
+
+	return nil
+}
+
 func (m *L4Policy) validateIngress(formats strfmt.Registry) error {
 
 	if swag.IsZero(m.Ingress) { // not required
+		return nil
+	}
+
+	return nil
+}
+
+func (m *L4Policy) validateIngressSourceRuleLabels(formats strfmt.Registry) error {
+
+	if swag.IsZero(m.IngressSourceRuleLabels) { // not required
 		return nil
 	}
 

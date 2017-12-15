@@ -1587,8 +1587,30 @@ func init() {
             "type": "string"
           }
         },
+        "egress-source-rule-count": {
+          "description": "count of ingress L4 rules in effect on this endpoint",
+          "type": "integer"
+        },
+        "egress-source-rule-labels": {
+          "description": "Labels of egress L4 rules in effect on this endpoint",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
         "ingress": {
           "description": "List of L4 ingress rules",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "ingress-source-rule-count": {
+          "description": "count of ingress L4 rules in effect on this endpoint",
+          "type": "integer"
+        },
+        "ingress-source-rule-labels": {
+          "description": "Lables of ingres L4 rules in effect on this endpoint",
           "type": "array",
           "items": {
             "type": "string"

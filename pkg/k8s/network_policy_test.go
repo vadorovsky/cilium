@@ -128,9 +128,14 @@ func (s *K8sSuite) TestParseNetworkPolicy(c *C) {
 					Ingress: true,
 				},
 			},
+			SourceRuleLabels: labels.Labels{
+				"unspec:io.cilium.k8s-policy-namespace=default": labels.ParseLabel("unspec:io.cilium.k8s-policy-namespace=default"),
+				"unspec:io.cilium.k8s-policy-name":              labels.ParseLabel("unspec:io.cilium.k8s-policy-name"),
+			},
 		},
 		Egress: policy.L4PolicyMap{
-			Filters: map[string]policy.L4Filter{},
+			Filters:          map[string]policy.L4Filter{},
+			SourceRuleLabels: labels.Labels{},
 		},
 	})
 
