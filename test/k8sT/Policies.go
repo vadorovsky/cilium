@@ -282,4 +282,39 @@ var _ = Describe("K8sPolicyTest", func() {
 		Expect(err).Should(BeNil())
 	}, 500)
 
+	It("Policies Across Namespaces", func() {
+		ciliumPodK8s1, err := kubectl.GetCiliumPodOnNode(helpers.KubeSystemNamespace, helpers.K8s1)
+		Expect(err).Should(BeNil())
+
+		ciliumPodK8s2, err := kubectl.GetCiliumPodOnNode(helpers.KubeSystemNamespace, helpers.K8s2)
+		Expect(err).Should(BeNil())
+
+		ciliumPods := []string{ciliumPodK8s1, ciliumPodK8s2}
+
+		// Set debug mode to false for both cilium pods.
+		for _, ciliumPod := range ciliumPods {
+			out, err := kubectl.ExecPodCmd(helpers.KubeSystemNamespace, ciliumPod, "cilium config Debug=false")
+			Expect(err).Should(BeNil(), fmt.Sprintf("error disabling debug mode for cilium pod %s: %s", ciliumPod, out))
+		}
+
+
+		// TODO - set nodeselector in files? this will only be used during the test so why not just hardcode it?
+		/*log "setting node-selector in ${l7_stresstest_dir}/1-frontend.json so frontend runs on $node_selector"
+		sed "s/\$kube_node_selector/${node_selector}/" \
+		"${l7_stresstest_dir}/1-frontend.json.sed" > "${l7_stresstest_dir}/1-frontend.json"
+
+		# Set backend on k8s-2 to force inter-node communication
+		node_selector="k8s-2"
+
+		log "setting node-selector in ${l7_stresstest_dir}/2-backend-server.json so backend runs on $node_selector"
+		sed "s/\$kube_node_selector/${node_selector}/" \
+		"${l7_stresstest_dir}/2-backend-server.json.sed" > "${l7_stresstest_dir}/2-backend-server.json"*/
+
+		By("Creating Kubernetes namespace qa")
+		kubectl.
+		By("Creating Kubernetes namespace development")
+
+
+	}, 300)
+
 })
