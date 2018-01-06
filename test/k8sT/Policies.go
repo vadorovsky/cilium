@@ -311,8 +311,12 @@ var _ = Describe("K8sPolicyTest", func() {
 		"${l7_stresstest_dir}/2-backend-server.json.sed" > "${l7_stresstest_dir}/2-backend-server.json"*/
 
 		By("Creating Kubernetes namespace qa")
-		kubectl.
+		res := kubectl.CreateResource("namespace", "qa")
+		res.ExpectSuccess()
+
 		By("Creating Kubernetes namespace development")
+		res := kubectl.CreateResource("namespace", "development	")
+		res.ExpectSuccess()
 
 
 	}, 300)
