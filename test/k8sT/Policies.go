@@ -59,9 +59,9 @@ var _ = Describe("K8sPolicyTest", func() {
 
 	BeforeEach(func() {
 		initialize()
-		kubectl.Apply(demoPath)
+		/*kubectl.Apply(demoPath)
 		_, err := kubectl.WaitforPods(helpers.DefaultNamespace, "-l zgroup=testapp", 300)
-		Expect(err).Should(BeNil())
+		Expect(err).Should(BeNil())*/
 	})
 
 	AfterEach(func() {
@@ -72,10 +72,10 @@ var _ = Describe("K8sPolicyTest", func() {
 				"cilium endpoint list"})
 		}
 
-		kubectl.Delete(demoPath)
+		/*kubectl.Delete(demoPath)
 		// TO make sure that are not in place
 		kubectl.Delete(l3Policy)
-		kubectl.Delete(l7Policy)
+		kubectl.Delete(l7Policy)*/
 	})
 
 	waitUntilEndpointUpdates := func(pod string, eps map[string]int64, min int) error {
@@ -283,6 +283,52 @@ var _ = Describe("K8sPolicyTest", func() {
 	}, 500)
 
 	It("Policies Across Namespaces", func() {
+
+		namespace := "namespace"
+		qaNs := "qa"
+		developmentNs := "development"
+		podNameFilter := "{.items[*].metadata.name}"
+
+		// formatLabelArgument formats the provided key-value pairs as labels for use in
+		// querying Kubernetes.
+		formatLabelArgument := func(firstKey, firstValue string, nextLabels ...string) string {
+			baseString := fmt.Sprintf("-l %s=%s", firstKey, firstValue)
+			if nextLabels == nil {
+				return baseString
+			} else if len(nextLabels)%2 != 0 {
+				panic("must provide even number of arguments for label key-value pairings")
+			} else {
+				for i := 0; i < len(nextLabels); i += 2 {
+					baseString = fmt.Sprintf("%s,%s=%s", baseString, nextLabels[i], nextLabels[i+1])
+				}
+			}
+			return baseString
+		}
+
+		testConnectivity := func(backendIP, frontendPod string) {
+			By("Testing connectivity")
+			By("netstat output")
+
+			res := kubectl.Exec("netstat -ltn")
+			By(fmt.Sprintf("%s", res.GetStdOut()))
+
+			By(fmt.Sprintf("running curl %s:80 from pod %s (should work)", backendIP, frontendPod))
+			returnCode := kubectl.Exec(fmt.Sprintf("kubectl exec -n qa -i %s -- curl -s -o /dev/null -w \"%%{http_code}\" http://%s:80/", frontendPod, backendIP)).GetStdOut()
+
+			Expect(returnCode).Should(Equal("200"), "Unable to connect between front and backend:80/")
+
+			By(fmt.Sprintf("running curl %s:80/health from pod %s (shouldn't work)", backendIP, frontendPod))
+
+			returnCode = kubectl.Exec(fmt.Sprintf("kubectl exec -n qa -i %s -- curl --connect-timeout 20 -s -o /dev/null -w \"%%{http_code}\" http://%s:80/health", frontendPod, backendIP)).GetStdOut()
+
+			Expect(returnCode).Should(Equal("403"), fmt.Sprintf("Unexpected connection between frontend and backend; wanted HTTP 403, got: HTTP %s", returnCode))
+
+			/*
+				//TODO -- add this 
+				kubectl exec -n qa -i ${frontend_pod} -- wrk -t20 -c1000 -d60 "http://${backend_svc_ip}:80/"
+			*/
+		}
+
 		ciliumPodK8s1, err := kubectl.GetCiliumPodOnNode(helpers.KubeSystemNamespace, helpers.K8s1)
 		Expect(err).Should(BeNil())
 
@@ -297,27 +343,158 @@ var _ = Describe("K8sPolicyTest", func() {
 			Expect(err).Should(BeNil(), fmt.Sprintf("error disabling debug mode for cilium pod %s: %s", ciliumPod, out))
 		}
 
-
-		// TODO - set nodeselector in files? this will only be used during the test so why not just hardcode it?
-		/*log "setting node-selector in ${l7_stresstest_dir}/1-frontend.json so frontend runs on $node_selector"
-		sed "s/\$kube_node_selector/${node_selector}/" \
-		"${l7_stresstest_dir}/1-frontend.json.sed" > "${l7_stresstest_dir}/1-frontend.json"
-
-		# Set backend on k8s-2 to force inter-node communication
-		node_selector="k8s-2"
-
-		log "setting node-selector in ${l7_stresstest_dir}/2-backend-server.json so backend runs on $node_selector"
-		sed "s/\$kube_node_selector/${node_selector}/" \
-		"${l7_stresstest_dir}/2-backend-server.json.sed" > "${l7_stresstest_dir}/2-backend-server.json"*/
-
 		By("Creating Kubernetes namespace qa")
-		res := kubectl.CreateResource("namespace", "qa")
+		res := kubectl.CreateResource(namespace, qaNs)
+		defer kubectl.DeleteResource(namespace, qaNs)
 		res.ExpectSuccess()
 
 		By("Creating Kubernetes namespace development")
-		res := kubectl.CreateResource("namespace", "development	")
+		res = kubectl.CreateResource(namespace, developmentNs)
+		defer kubectl.DeleteResource(namespace, developmentNs)
 		res.ExpectSuccess()
 
+		resourcePath := kubectl.ManifestGet("l7-stresstest")
+		fmt.Println("resourcePath: %s", resourcePath)
+		res = kubectl.Create(resourcePath)
+		defer kubectl.Delete(resourcePath)
+		res.ExpectSuccess()
+
+		By("Waiting for endpoints to be ready on k8s-2 node")
+		areEndpointsReady := kubectl.CiliumEndpointWait(ciliumPodK8s2)
+		Expect(areEndpointsReady).Should(BeTrue())
+
+		By("Getting information about pods in qa namespace")
+		res = kubectl.Exec("kubectl get pods -n qa -o wide")
+		log.Infof("%s", res.GetStdOut())
+
+		By("Getting information about pods in development namespace")
+		res = kubectl.Exec("kubectl get pods -n development -o wide")
+		log.Infof("%s", res.GetStdOut())
+
+		By("Getting information about backend service in development namespace")
+		res = kubectl.Exec("kubectl describe svc -n development backend")
+		log.Infof("%s", res.GetStdOut())
+
+		By("Getting K8s services")
+		res = kubectl.Exec("kubectl get svc --all-namespaces")
+		log.Infof("%s", res.GetStdOut())
+
+		pods, err := kubectl.WaitForServiceEndpoints(developmentNs, "", "backend", "80", helpers.HelperTimeout)
+		Expect(pods).Should(BeTrue())
+		Expect(err).Should(BeNil())
+
+		By("Getting information about pods in qa namespace")
+		res = kubectl.Exec("kubectl get pods -n qa -o wide")
+		log.Infof("%s", res.GetStdOut())
+
+		By("Getting information about pods in development namespace")
+		res = kubectl.Exec("kubectl get pods -n development -o wide")
+		log.Infof("%s", res.GetStdOut())
+
+		By("Getting information about backend service in development namespace")
+		res = kubectl.Exec("kubectl describe svc -n development backend")
+		log.Infof("%s", res.GetStdOut())
+
+		frontendPod, err := kubectl.GetPods(qaNs, formatLabelArgument("id", "client")).Filter(podNameFilter)
+		Expect(err).Should(BeNil())
+
+		By(fmt.Sprintf("%s", frontendPod))
+
+		backendPod, err := kubectl.GetPods(developmentNs, formatLabelArgument("id", "server")).Filter(podNameFilter)
+		Expect(err).Should(BeNil())
+
+		By(fmt.Sprintf("%s", backendPod))
+
+		backendSvcIP, err := kubectl.Exec("kubectl get svc -n development -o json").Filter("{.items[*].spec.clusterIP}")
+		Expect(err).Should(BeNil())
+
+		By(fmt.Sprintf("Backend Service IP: %s", backendSvcIP.String))
+
+		By("Running tests WITHOUT Policy / Proxy loaded")
+
+		By(fmt.Sprintf("running curl %s:80 from pod %s (should work)", backendSvcIP, frontendPod))
+		returnCode := kubectl.Exec(fmt.Sprintf("kubectl exec -n qa -i %s -- curl -s -o /dev/null -w \"%%{http_code}\" http://%s:80/", frontendPod, backendSvcIP)).GetStdOut()
+
+		Expect(returnCode).Should(Equal("200"), "Unable to connect between front and backend:80/")
+
+		l7StressTest := func() {
+			By("L7 Stresstest")
+			By("Loading Policies into Cilium")
+
+			var policyPath string
+			var policyCmd string
+
+			if helpers.GetCurrentK8SEnv() != "1.6" {
+				policyPath = fmt.Sprintf("%s/policies/cnp.yaml", resourcePath)
+				policyCmd = "cilium policy get io.cilium.k8s-policy-name=l7-stresstest"
+			} else {
+				policyPath = fmt.Sprintf("%s/policies/cnp-deprecated.yaml", resourcePath)
+				policyCmd = "cilium policy get io.cilium.k8s-policy-name=l7-stresstest-deprecated"
+			}
+
+			res = kubectl.Create(policyPath)
+			defer func() {
+				By("Checking that all policies were deleted in Cilium")
+				output, err := kubectl.ExecPodCmd(helpers.KubeSystemNamespace, ciliumPodK8s1, policyCmd)
+				Expect(err).Should(Not(BeNil()), "policies should be deleted from Cilium: policies found: %s", output)
+			}()
+
+			defer kubectl.Delete(policyPath)
+
+			res.ExpectSuccess()
+
+			By("Waiting for endpoints on k8s2 to be in ready state")
+			areEndpointsReady = kubectl.CiliumEndpointWait(ciliumPodK8s2)
+			Expect(areEndpointsReady).Should(BeTrue())
+
+			output, err := kubectl.ExecPodCmd(helpers.KubeSystemNamespace, ciliumPodK8s1, "cilium policy get")
+			Expect(err).Should(BeNil(), fmt.Sprintf("output of \"cilium policy get\": %s", output))
+
+			By("Running tests WITH Policy / Proxy loaded")
+
+			testConnectivity(backendSvcIP.String(), frontendPod.String())
+		}
+
+		l7StressTest()
+
+		crossNamespaceTest := func() {
+			By("Testing policy enforcement from any namespace")
+			var policyPath string
+			var policyCmd string
+
+			if helpers.GetCurrentK8SEnv() != "1.6" {
+				policyPath = fmt.Sprintf("%s/policies/cnp-any-namespace.yaml", resourcePath)
+				policyCmd = "cilium policy get io.cilium.k8s-policy-name=l7-stresstest"
+			} else {
+				policyPath = fmt.Sprintf("%s/policies/cnp-any-namespace-deprecated.yaml", resourcePath)
+				policyCmd = "cilium policy get io.cilium.k8s-policy-name=l7-stresstest-deprecated"
+			}
+
+			res = kubectl.Create(policyPath)
+			defer func() {
+				By("Checking that all policies were deleted in Cilium")
+				output, err := kubectl.ExecPodCmd(helpers.KubeSystemNamespace, ciliumPodK8s1, policyCmd)
+				Expect(err).Should(Not(BeNil()), "policies should be deleted from Cilium: policies found: %s", output)
+			}()
+
+			defer kubectl.Delete(policyPath)
+
+			res.ExpectSuccess()
+
+			By("Waiting for endpoints on k8s2 to be in ready state")
+			areEndpointsReady = kubectl.CiliumEndpointWait(ciliumPodK8s2)
+			Expect(areEndpointsReady).Should(BeTrue())
+
+			output, err := kubectl.ExecPodCmd(helpers.KubeSystemNamespace, ciliumPodK8s1, "cilium policy get")
+			Expect(err).Should(BeNil(), fmt.Sprintf("output of \"cilium policy get\": %s", output))
+
+			By("Running tests WITH Policy / Proxy loaded")
+
+			testConnectivity(backendSvcIP.String(), frontendPod.String())
+
+		}
+
+		crossNamespaceTest()
 
 	}, 300)
 

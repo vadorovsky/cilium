@@ -279,8 +279,13 @@ func (kub *Kubectl) Create(filePath string) *CmdRes {
 }
 
 func (kub *Kubectl) CreateResource(resource, resourceName string) *CmdRes {
-	kub.logger.Debug("creating resouce %s with name %s", resource, resourceName)
-	return kub.Exec(fmt.Sprintf("%s create %s", resource, resourceName))
+	kub.logger.Debug(fmt.Sprintf("creating resource %s with name %s", resource, resourceName))
+	return kub.Exec(fmt.Sprintf("kubectl create %s %s", resource, resourceName))
+}
+
+func (kub *Kubectl) DeleteResource(resource, resourceName string) *CmdRes {
+	kub.logger.Debug(fmt.Sprintf("deleting resource %s with name %s", resource, resourceName))
+	return kub.Exec(fmt.Sprintf("kubectl delete %s %s", resource, resourceName))
 }
 
 // Delete deletes the Kubernetes manifest at path filepath.
