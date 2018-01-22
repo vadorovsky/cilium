@@ -25,6 +25,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var bpfCtList = make(map[string]string)
+
 // bpfCtListCmd represents the bpf_ct_list command
 var bpfCtListCmd = &cobra.Command{
 	Use:    "list",
@@ -47,7 +49,6 @@ func init() {
 }
 
 func dumpCtProto(mapType, eID string) {
-
 	file := bpf.MapPath(mapType + eID)
 	m, err := bpf.OpenMap(file)
 	if err != nil {
