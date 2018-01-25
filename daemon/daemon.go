@@ -68,6 +68,7 @@ import (
 
 	"github.com/go-openapi/runtime/middleware"
 	"github.com/mattn/go-shellwords"
+	gobgp "github.com/osrg/gobgp/server"
 	"github.com/sirupsen/logrus"
 	"github.com/vishvananda/netlink"
 )
@@ -118,6 +119,9 @@ type Daemon struct {
 	// Used to synchronize generation of daemon's BPF programs and endpoint BPF
 	// programs.
 	compilationMutex *lock.RWMutex
+
+	// Optional BGP server.
+	bgpServer *gobgp.BgpServer
 }
 
 // UpdateProxyRedirect updates the redirect rules in the proxy for a particular
@@ -693,6 +697,8 @@ func (d *Daemon) compileBase() error {
 		args[initArgDevice] = d.conf.Device
 
 		args = append(args, d.conf.Device)
+	} else if d.conf.Tunnel == "bgp" {
+		args[initArgMode] = "direct"
 	} else {
 		if d.conf.IsLBEnabled() {
 			//FIXME: allow LBMode in tunnel

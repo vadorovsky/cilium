@@ -743,6 +743,10 @@ func runDaemon() {
 		log.WithError(err).Warn("Error deleting cilium-envoy.log")
 	}
 
+	if err := d.EnableBGPServer(); err != nil {
+		log.WithError(err).Warn("Error while enabling BGP server")
+	}
+
 	swaggerSpec, err := loads.Analyzed(server.SwaggerJSON, "")
 	if err != nil {
 		log.WithError(err).Fatal("Cannot load swagger spec")
