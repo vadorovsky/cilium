@@ -180,6 +180,15 @@ var (
 		Help:      "Total forwarded packets, tagged by ingress/egress direction",
 	},
 		[]string{"direction"})
+
+	// Status
+
+	// Latency is a histogram showing latency to nodes
+	Latency = prometheus.NewHistogramVec(prometheus.HistogramOpts{
+		Namespace: Namespace,
+		Name:      "latency",
+		Help:      "Latency to nodes",
+	}, []string{"node", "type", "ip", "protocol"})
 )
 
 func init() {
@@ -205,6 +214,10 @@ func init() {
 
 	MustRegister(DropCount)
 	MustRegister(ForwardCount)
+
+	MustRegister(Latency)
+
+	MustRegister(newStatusCollector())
 }
 
 // MustRegister adds the collector to the registry, exposing this metric to
@@ -223,6 +236,8 @@ func Enable(addr string) error {
 		http.Handle("/metrics", promhttp.HandlerFor(registry, promhttp.HandlerOpts{}))
 		log.WithError(http.ListenAndServe(addr, nil)).Warn("Cannot start metrics server on %s", addr)
 	}()
+
+	go updateLatencyMetrics()
 
 	return nil
 }
