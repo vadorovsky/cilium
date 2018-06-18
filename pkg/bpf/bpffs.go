@@ -72,9 +72,35 @@ func MapPrefixPath() string {
 	return filepath.Join(mapRoot, mapPrefix)
 }
 
+// MapPath returns a path for a BPF map with a given name.
+// NOTE: This function should be used only by cilium daemon.
 func MapPath(name string) string {
 	once.Do(lockDown)
 	return filepath.Join(mapRoot, mapPrefix, name)
+}
+
+// MapPathCLI returns a path for a BPF map with a given name.
+// NOTE: This function should be used by CLI or any component which is not
+// daemon.
+func MapPathCLI(name string) (string, error) {
+	var mapRootMountInfo *mountinfo.MountInfo
+	mountInfos, err := mountinfo.GetMountInfo()
+	if err != nil {
+		return "", err
+	}
+
+	for _, mountInfo := range mountInfos {
+		if mountInfo.FilesystemType == mountinfo.FilesystemTypeBPFFS {
+			mapRootMountInfo = mountInfo
+			break
+		}
+	}
+
+	if mapRootMountInfo == nil {
+		return "", fmt.Errorf("could not find BPF map root")
+	}
+
+	return filepath.Join(mapRootMountInfo.MountPoint, mapPrefix, name), nil
 }
 
 // Environment returns a list of environment variables which are needed to make
