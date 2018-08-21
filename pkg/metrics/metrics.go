@@ -27,6 +27,8 @@ import (
 	"time"
 
 	"github.com/cilium/cilium/api/v1/models"
+	"github.com/cilium/cilium/pkg/components"
+
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	dto "github.com/prometheus/client_model/go"
@@ -293,6 +295,15 @@ var (
 		Help: "Duration in seconds of the garbage collector process " +
 			"labeled by datapath family and completion status",
 	}, []string{LabelDatapathFamily, LabelStatus})
+
+	// Errors and warnings
+
+	// ErrorsWarnings is the number of errors and warnings in cilium-agent instances
+	ErrorsWarnings = prometheus.NewCounterVec(prometheus.CounterOpts{
+		Namespace: Namespace,
+		Name:      "errors_warnings_total",
+		Help:      "Number of total errors in cilium-agent instances",
+	}, []string{"level", "subsystem"})
 )
 
 func init() {
@@ -332,6 +343,8 @@ func init() {
 	MustRegister(ConntrackGCKeyFallbacks)
 	MustRegister(ConntrackGCSize)
 	MustRegister(ConntrackGCDuration)
+
+	MustRegister(ErrorsWarnings)
 }
 
 // MustRegister adds the collector to the registry, exposing this metric to
@@ -417,4 +430,26 @@ func DumpMetrics() ([]*models.Metric, error) {
 		}
 	}
 	return result, nil
+}
+
+// NOTE(mrostecki): For now errors and warning metric exists only for Cilium
+// daemon, but support of Prometheus metrics in some other components (i.e.
+// cilium-health - GH-4268) is planned.
+
+// IncErrorsMetric increases the errors counter for the appropriate Cilium
+// component.
+func IncErrorsMetric(subsystem string) {
+	switch {
+	case components.IsCiliumAgent():
+		ErrorsWarnings.WithLabelValues("error", subsystem).Inc()
+	}
+}
+
+// IncWarningsMetric increases the warnings counter for the appropriate Cilium
+// component.
+func IncWarningsMetric(subsystem string) {
+	switch {
+	case components.IsCiliumAgent():
+		ErrorsWarnings.WithLabelValues("warning", subsystem).Inc()
+	}
 }
