@@ -44,6 +44,7 @@ import (
 	cilium_client_v2 "github.com/cilium/cilium/pkg/k8s/client/clientset/versioned/typed/cilium.io/v2"
 	pkgLabels "github.com/cilium/cilium/pkg/labels"
 	"github.com/cilium/cilium/pkg/lock"
+	logginghelpers "github.com/cilium/cilium/pkg/logging/helpers"
 	"github.com/cilium/cilium/pkg/logging/logfields"
 	"github.com/cilium/cilium/pkg/mac"
 	"github.com/cilium/cilium/pkg/maps/cidrmap"
@@ -1737,7 +1738,7 @@ func (e *Endpoint) replaceInformationLabels(l pkgLabels.Labels) {
 
 	for _, v := range l {
 		if e.OpLabels.OrchestrationInfo.UpsertLabel(v) {
-			scopedLog.WithField(logfields.Labels, logfields.Repr(v)).Debug("Assigning information label")
+			scopedLog.WithField(logfields.Labels, logginghelpers.Repr(v)).Debug("Assigning information label")
 		}
 	}
 	e.OpLabels.OrchestrationInfo.DeleteMarked()
@@ -1766,7 +1767,7 @@ func (e *Endpoint) replaceIdentityLabels(l pkgLabels.Labels) int {
 		if e.OpLabels.Disabled[k] != nil {
 			e.OpLabels.Disabled[k].ClearDeletionMark()
 		} else if e.OpLabels.OrchestrationIdentity.UpsertLabel(v) {
-			scopedLog.WithField(logfields.Labels, logfields.Repr(v)).Debug("Assigning security relevant label")
+			scopedLog.WithField(logfields.Labels, logginghelpers.Repr(v)).Debug("Assigning security relevant label")
 			changed = true
 		}
 	}
