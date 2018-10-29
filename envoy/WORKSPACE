@@ -1,5 +1,7 @@
 workspace(name = "cilium")
 
+load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
+
 #
 # We grep for the following line to generate SOURCE_VERSION file for non-git
 # distribution builds. This line must start with the string ENVOY_SHA followed by
@@ -7,12 +9,15 @@ workspace(name = "cilium")
 #
 # No other line in this file may have ENVOY_SHA followed by an equals sign!
 #
-ENVOY_SHA = "f936fc60f488cfae07f5e5d20d7381f0f23482fe"
+ENVOY_SHA = "dc0d35b9ed93b4f5d2ad83f6a7e78832504aeeea"
+ENVOY_SHASUM = "4ef219aaad16f542e084f0d650d61b42b8ab45ced271b22a8ede2a55e5413ff4"
 
 http_archive(
     name = "envoy",
     url = "https://github.com/envoyproxy/envoy/archive/" + ENVOY_SHA + ".zip",
+    sha256 = ENVOY_SHASUM,
     strip_prefix = "envoy-" + ENVOY_SHA,
+    patches = ["//:api-visibility.patch"],
 )
 
 #
@@ -33,8 +38,6 @@ load("@envoy_api//bazel:repositories.bzl", "api_dependencies")
 api_dependencies()
 
 load("@io_bazel_rules_go//go:def.bzl", "go_rules_dependencies", "go_register_toolchains")
-load("@com_lyft_protoc_gen_validate//bazel:go_proto_library.bzl", "go_proto_repositories")
-go_proto_repositories(shared=0)
 go_rules_dependencies()
 go_register_toolchains()
 
@@ -43,10 +46,12 @@ go_register_toolchains()
 # Cf. https://github.com/istio/proxy.
 
 ISTIO_PROXY_SHA = "490d26feeff134b907f700e08e58a9e6219dce11"
+ISTIO_PROXY_SHASUM = "a7d45cd99fc7c7cb7b223d80d17d0f78100432f3cac34908eee23888a4573ebb"
 
 http_archive(
     name = "istio_proxy",
     url = "https://github.com/istio/proxy/archive/" + ISTIO_PROXY_SHA + ".zip",
+    sha256 = ISTIO_PROXY_SHASUM,
     strip_prefix = "proxy-" + ISTIO_PROXY_SHA,
 )
 
