@@ -39,9 +39,9 @@ api_proto_library(
     srcs = ["npds.proto"],
     visibility = ["//visibility:public"],
     deps = [
-        "@envoy_api//envoy/api/v2:discovery",
-        "@envoy_api//envoy/api/v2/core:address",
-        "@envoy_api//envoy/api/v2/route:route",
+        "@envoy_api//envoy/api/v2:discovery_export",
+        "@envoy_api//envoy/api/v2/core:address_export",
+        "@envoy_api//envoy/api/v2/route:route_export",
     ],
 )
 
@@ -51,6 +51,6 @@ api_proto_library(
     srcs = ["nphds.proto"],
     visibility = ["//visibility:public"],
     deps = [
-        "@envoy_api//envoy/api/v2:discovery",
+        "@envoy_api//envoy/api/v2:discovery_export",
     ],
 )
