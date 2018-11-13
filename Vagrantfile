@@ -30,13 +30,10 @@ echo "getting status of systemd-journald"
 sudo service systemd-journald status
 echo "done configuring journald"
 
+zypper -n --gpg-auto-import-key in --no-recommends curl glibc-devel-32bit libelf-devel
+
 sudo service docker restart
 echo 'cd ~/go/src/github.com/cilium/cilium' >> /home/vagrant/.bashrc
-sudo -E /usr/local/go/bin/go get github.com/cilium/go-bindata/...
-sudo -E /usr/local/go/bin/go get -u github.com/google/gops
-sudo -E /usr/local/go/bin/go get -d github.com/lyft/protoc-gen-validate
-sudo -E /usr/local/go/bin/go get -u github.com/gordonklaus/ineffassign
-(cd ~/go/src/github.com/lyft/protoc-gen-validate ; sudo git checkout 930a67cf7ba41b9d9436ad7a1be70a5d5ff6e1fc ; make build)
 sudo chown -R vagrant:vagrant /home/vagrant
 curl -SsL https://github.com/cilium/bpf-map/releases/download/v1.0/bpf-map -o bpf-map
 chmod +x bpf-map
@@ -53,10 +50,10 @@ $install = <<SCRIPT
 sudo -E make -C /home/vagrant/go/src/github.com/cilium/cilium/ install
 
 sudo mkdir -p /etc/sysconfig
-sudo cp /home/vagrant/go/src/github.com/cilium/cilium/contrib/systemd/cilium-consul.service /lib/systemd/system
-sudo cp /home/vagrant/go/src/github.com/cilium/cilium/contrib/systemd/cilium-docker.service /lib/systemd/system
-sudo cp /home/vagrant/go/src/github.com/cilium/cilium/contrib/systemd/cilium-etcd.service /lib/systemd/system
-sudo cp /home/vagrant/go/src/github.com/cilium/cilium/contrib/systemd/cilium.service /lib/systemd/system
+sudo cp /home/vagrant/go/src/github.com/cilium/cilium/contrib/systemd/cilium-consul.service /etc/systemd/system
+sudo cp /home/vagrant/go/src/github.com/cilium/cilium/contrib/systemd/cilium-docker.service /etc/systemd/system
+sudo cp /home/vagrant/go/src/github.com/cilium/cilium/contrib/systemd/cilium-etcd.service /etc/systemd/system
+sudo cp /home/vagrant/go/src/github.com/cilium/cilium/contrib/systemd/cilium.service /etc/systemd/system
 sudo cp /home/vagrant/go/src/github.com/cilium/cilium/contrib/systemd/cilium /etc/sysconfig
 
 sudo usermod -a -G cilium vagrant
@@ -115,8 +112,10 @@ Vagrant.configure(2) do |config|
         vb.customize ["modifyvm", :id, "--natdnshostresolver1", "on"]
         vb.customize ["modifyvm", :id, "--natdnsproxy1", "on"]
 
-        config.vm.box = "cilium/ubuntu-dev"
-        config.vm.box_version = "125"
+        $distribution = ENV['DISTRIBUTION'] || "ubuntu"
+
+        config.vm.box = "cilium/#{$distribution}"
+        config.vm.box_version = "126"
         vb.memory = ENV['VM_MEMORY'].to_i
         vb.cpus = ENV['VM_CPUS'].to_i
         if ENV["NFS"] then

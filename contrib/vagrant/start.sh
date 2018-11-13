@@ -176,7 +176,6 @@ function write_k8s_header(){
 set -e
 
 # K8s installation
-sudo apt-get -y install curl
 mkdir -p "${k8s_dir}"
 cd "${k8s_dir}"
 
