@@ -27,10 +27,19 @@ var (
 	kvStoreOpts = make(map[string]string)
 )
 
-// kvstoreCmd represents the bpf command
-var kvstoreCmd = &cobra.Command{
-	Use:   "kvstore",
-	Short: "Direct access to the kvstore",
+// newKvstoreCommand returns the kvstore command.
+func newKvstoreCommand() *cobra.Command {
+	kvstoreCmd := &cobra.Command{
+		Use:   "kvstore",
+		Short: "Direct access to the kvstore",
+	}
+	flags := kvstoreCmd.PersistentFlags()
+	flags.StringVar(&kvStore, "kvstore", "", "kvstore type")
+	flags.Var(option.NewNamedMapOptions("kvstore-opts", &kvStoreOpts, nil), "kvstore-opt", "kvstore options")
+	kvstoreCmd.AddCommand(newKvstoreDeleteCommand())
+	kvstoreCmd.AddCommand(newKvstoreGetCommand())
+	kvstoreCmd.AddCommand(newKvstoreSetCommand())
+	return kvstoreCmd
 }
 
 func setupKvstore() {
@@ -59,11 +68,4 @@ func setupKvstore() {
 	if err := kvstore.Setup(kvStore, kvStoreOpts); err != nil {
 		Fatalf("Unable to setup kvstore: %s", err)
 	}
-}
-
-func init() {
-	rootCmd.AddCommand(kvstoreCmd)
-	flags := kvstoreCmd.PersistentFlags()
-	flags.StringVar(&kvStore, "kvstore", "", "kvstore type")
-	flags.Var(option.NewNamedMapOptions("kvstore-opts", &kvStoreOpts, nil), "kvstore-opt", "kvstore options")
 }

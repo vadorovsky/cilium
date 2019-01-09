@@ -18,12 +18,13 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// identityCmd represents the identity command
-var identityCmd = &cobra.Command{
-	Use:   "identity",
-	Short: "Manage security identities",
-}
-
-func init() {
-	rootCmd.AddCommand(identityCmd)
+// newIdentityCommand returns the identity command.
+func newIdentityCommand() *cobra.Command {
+	identityCmd := &cobra.Command{
+		Use:   "identity",
+		Short: "Manage security identities",
+	}
+	identityCmd.AddCommand(newIdentityGetCommand())
+	identityCmd.AddCommand(newIdentityListCommand())
+	return identityCmd
 }

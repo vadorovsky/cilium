@@ -20,30 +20,29 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var kvstoreDeleteCmd = &cobra.Command{
-	Use:     "delete [options] <key>",
-	Short:   "Delete a key",
-	Example: "cilium kvstore delete --recursive foo",
-	Run: func(cmd *cobra.Command, args []string) {
-		setupKvstore()
+func newKvstoreDeleteCommand() *cobra.Command {
+	kvstoreDeleteCmd := &cobra.Command{
+		Use:     "delete [options] <key>",
+		Short:   "Delete a key",
+		Example: "cilium kvstore delete --recursive foo",
+		Run: func(cmd *cobra.Command, args []string) {
+			setupKvstore()
 
-		if len(args) < 1 {
-			Fatalf("Please specify a key or key prefix to delete")
-		}
-
-		if recursive {
-			if err := kvstore.DeletePrefix(args[0]); err != nil {
-				Fatalf("Unable to delete keys: %s", err)
+			if len(args) < 1 {
+				Fatalf("Please specify a key or key prefix to delete")
 			}
-		} else {
-			if err := kvstore.Delete(args[0]); err != nil {
-				Fatalf("Unable to delete key: %s", err)
-			}
-		}
-	},
-}
 
-func init() {
-	kvstoreCmd.AddCommand(kvstoreDeleteCmd)
+			if recursive {
+				if err := kvstore.DeletePrefix(args[0]); err != nil {
+					Fatalf("Unable to delete keys: %s", err)
+				}
+			} else {
+				if err := kvstore.Delete(args[0]); err != nil {
+					Fatalf("Unable to delete key: %s", err)
+				}
+			}
+		},
+	}
 	kvstoreDeleteCmd.Flags().BoolVar(&recursive, "recursive", false, "Recursive lookup")
+	return kvstoreDeleteCmd
 }

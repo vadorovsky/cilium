@@ -36,20 +36,19 @@ const (
 
 var noHeaders bool
 
-// endpointListCmd represents the endpoint_list command
-var endpointListCmd = &cobra.Command{
-	Use:     "list",
-	Aliases: []string{"ls"},
-	Short:   "List all endpoints",
-	Run: func(cmd *cobra.Command, args []string) {
-		listEndpoints()
-	},
-}
-
-func init() {
-	endpointCmd.AddCommand(endpointListCmd)
+// newEndpointListCommand returns the endpoint_list command.
+func newEndpointListCommand() *cobra.Command {
+	var endpointListCmd = &cobra.Command{
+		Use:     "list",
+		Aliases: []string{"ls"},
+		Short:   "List all endpoints",
+		Run: func(cmd *cobra.Command, args []string) {
+			listEndpoints()
+		},
+	}
 	endpointListCmd.Flags().BoolVar(&noHeaders, "no-headers", false, "Do not print headers")
 	command.AddJSONOutput(endpointListCmd)
+	return endpointListCmd
 }
 
 func endpointPolicyMode(ep *models.Endpoint) (string, string) {

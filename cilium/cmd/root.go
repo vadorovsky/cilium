@@ -33,30 +33,45 @@ var (
 	verbose = false
 )
 
-// rootCmd represents the base command when called without any subcommands
-var rootCmd = &cobra.Command{
-	Use:   "cilium",
-	Short: "CLI",
-	Long:  `CLI for interacting with the local Cilium Agent`,
-}
-
-// Execute adds all child commands to the root command sets flags appropriately.
-// This is called by main.main(). It only needs to happen once to the rootCmd.
-func Execute() {
-	if err := rootCmd.Execute(); err != nil {
-		fmt.Println(err)
-		os.Exit(-1)
+// NewRootCommand returns the base CLI command, which is used when called
+// without any subcommands.
+func NewRootCommand() *cobra.Command {
+	rootCmd := &cobra.Command{
+		Use:   "cilium",
+		Short: "CLI",
+		Long:  `CLI for interacting with the local Cilium Agent`,
 	}
-}
 
-func init() {
 	cobra.OnInitialize(initConfig)
+
 	flags := rootCmd.PersistentFlags()
 	flags.StringVar(&cfgFile, "config", "", "config file (default is $HOME/.cilium.yaml)")
 	flags.BoolP("debug", "D", false, "Enable debug messages")
 	flags.StringP("host", "H", "", "URI to server-side API")
 	viper.BindPFlags(flags)
+
 	rootCmd.AddCommand(newCmdCompletion(os.Stdout))
+
+	rootCmd.AddCommand(newBashCompletionCommand(rootCmd))
+	rootCmd.AddCommand(newBpfCommand())
+	rootCmd.AddCommand(newCleanupCommand())
+	rootCmd.AddCommand(newCmdManCommand(rootCmd))
+	rootCmd.AddCommand(newCmdRefCommand(rootCmd))
+	rootCmd.AddCommand(newConfigCommand())
+	rootCmd.AddCommand(newDebugInfoCommand())
+	rootCmd.AddCommand(newEndpointCommand())
+	rootCmd.AddCommand(newIdentityCommand())
+	rootCmd.AddCommand(newKvstoreCommand())
+	rootCmd.AddCommand(newMapCommand())
+	rootCmd.AddCommand(newMetricsCommand())
+	rootCmd.AddCommand(newMonitorCommand())
+	rootCmd.AddCommand(newNodeCommand())
+	rootCmd.AddCommand(newPolicyCommand())
+	rootCmd.AddCommand(newPreFilterCommand())
+	rootCmd.AddCommand(newServiceCommand())
+	rootCmd.AddCommand(newVersionCommand())
+
+	return rootCmd
 }
 
 // initConfig reads in config file and ENV variables if set.

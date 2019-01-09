@@ -24,19 +24,17 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// bpfCtFlushCmd represents the bpf_ct_flush command
-var bpfCtFlushCmd = &cobra.Command{
-	Use:    "flush ( <endpoint identifier> | global )",
-	Short:  "Flush all connection tracking entries",
-	PreRun: requireEndpointIDorGlobal,
-	Run: func(cmd *cobra.Command, args []string) {
-		common.RequireRootPrivilege("cilium bpf ct flush")
-		flushCt(args[0])
-	},
-}
-
-func init() {
-	bpfCtCmd.AddCommand(bpfCtFlushCmd)
+// newBpfCtFlushCommand returns the bpf_ct_flush command.
+func newBpfCtFlushCommand() *cobra.Command {
+	return &cobra.Command{
+		Use:    "flush ( <endpoint identifier> | global )",
+		Short:  "Flush all connection tracking entries",
+		PreRun: requireEndpointIDorGlobal,
+		Run: func(cmd *cobra.Command, args []string) {
+			common.RequireRootPrivilege("cilium bpf ct flush")
+			flushCt(args[0])
+		},
+	}
 }
 
 type dummyEndpoint struct {

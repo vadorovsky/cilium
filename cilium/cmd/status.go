@@ -27,14 +27,26 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// statusCmd represents the daemon_status command
-var statusCmd = &cobra.Command{
-	Use:   "status",
-	Short: "Display status of daemon",
-	Run: func(cmd *cobra.Command, args []string) {
-		statusDaemon()
-	},
+// newStatusCommand returns the daemon_status command.
+func newStatusCommand() *cobra.Command {
+	statusCmd := &cobra.Command{
+		Use:   "status",
+		Short: "Display status of daemon",
+		Run: func(cmd *cobra.Command, args []string) {
+			statusDaemon()
+		},
+	}
+	statusCmd.Flags().BoolVar(&allAddresses, "all-addresses", false, "Show all allocated addresses, not just count")
+	statusCmd.Flags().BoolVar(&allControllers, "all-controllers", false, "Show all controllers, not just failing")
+	statusCmd.Flags().BoolVar(&allHealth, "all-health", false, "Show all health status, not just failing")
+	statusCmd.Flags().BoolVar(&allNodes, "all-nodes", false, "Show all nodes, not just localhost")
+	statusCmd.Flags().BoolVar(&allRedirects, "all-redirects", false, "Show all redirects")
+	statusCmd.Flags().BoolVar(&brief, "brief", false, "Only print a one-line status message")
+	statusCmd.Flags().BoolVar(&verbose, "verbose", false, "Equivalent to --all-addresses --all-controllers --all-nodes --all-health")
+	command.AddJSONOutput(statusCmd)
+	return statusCmd
 }
+
 var (
 	allAddresses   bool
 	allControllers bool
@@ -44,18 +56,6 @@ var (
 	brief          bool
 	healthLines    = 10
 )
-
-func init() {
-	rootCmd.AddCommand(statusCmd)
-	statusCmd.Flags().BoolVar(&allAddresses, "all-addresses", false, "Show all allocated addresses, not just count")
-	statusCmd.Flags().BoolVar(&allControllers, "all-controllers", false, "Show all controllers, not just failing")
-	statusCmd.Flags().BoolVar(&allHealth, "all-health", false, "Show all health status, not just failing")
-	statusCmd.Flags().BoolVar(&allNodes, "all-nodes", false, "Show all nodes, not just localhost")
-	statusCmd.Flags().BoolVar(&allRedirects, "all-redirects", false, "Show all redirects")
-	statusCmd.Flags().BoolVar(&brief, "brief", false, "Only print a one-line status message")
-	statusCmd.Flags().BoolVar(&verbose, "verbose", false, "Equivalent to --all-addresses --all-controllers --all-nodes --all-health")
-	command.AddJSONOutput(statusCmd)
-}
 
 func statusDaemon() {
 	if verbose {

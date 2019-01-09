@@ -33,39 +33,38 @@ var (
 	toDelete []string
 )
 
-// endpointLabelsCmd represents the endpoint_labels command
-var endpointLabelsCmd = &cobra.Command{
-	Use:    "labels",
-	Short:  "Manage label configuration of endpoint",
-	PreRun: requireEndpointID,
-	Run: func(cmd *cobra.Command, args []string) {
-		_, id, _ := endpointid.Parse(args[0])
-		addLabels := labels.NewLabelsFromModel(toAdd).GetModel()
+// newEndpointLabelsCommand returns the endpoint_labels command.
+func newEndpointLabelsCommand() *cobra.Command {
+	endpointLabelsCmd := &cobra.Command{
+		Use:    "labels",
+		Short:  "Manage label configuration of endpoint",
+		PreRun: requireEndpointID,
+		Run: func(cmd *cobra.Command, args []string) {
+			_, id, _ := endpointid.Parse(args[0])
+			addLabels := labels.NewLabelsFromModel(toAdd).GetModel()
 
-		deleteLabels := labels.NewLabelsFromModel(toDelete).GetModel()
+			deleteLabels := labels.NewLabelsFromModel(toDelete).GetModel()
 
-		if len(addLabels) > 0 || len(deleteLabels) > 0 {
-			if err := client.EndpointLabelsPatch(id, addLabels, deleteLabels); err != nil {
-				Fatalf("Cannot modifying labels %s", err)
+			if len(addLabels) > 0 || len(deleteLabels) > 0 {
+				if err := client.EndpointLabelsPatch(id, addLabels, deleteLabels); err != nil {
+					Fatalf("Cannot modifying labels %s", err)
+				}
 			}
-		}
 
-		lbls, err := client.EndpointLabelsGet(id)
-		switch {
-		case err != nil:
-			Fatalf("Cannot get endpoint labels: %s", err)
-		case lbls == nil || lbls.Status == nil:
-			Fatalf("Cannot get endpoint labels: empty response")
-		default:
-			printEndpointLabels(model.NewOplabelsFromModel(lbls.Status))
-		}
-	},
-}
-
-func init() {
-	endpointCmd.AddCommand(endpointLabelsCmd)
+			lbls, err := client.EndpointLabelsGet(id)
+			switch {
+			case err != nil:
+				Fatalf("Cannot get endpoint labels: %s", err)
+			case lbls == nil || lbls.Status == nil:
+				Fatalf("Cannot get endpoint labels: empty response")
+			default:
+				printEndpointLabels(model.NewOplabelsFromModel(lbls.Status))
+			}
+		},
+	}
 	endpointLabelsCmd.Flags().StringSliceVarP(&toAdd, "add", "a", []string{}, "Add/enable labels")
 	endpointLabelsCmd.Flags().StringSliceVarP(&toDelete, "delete", "d", []string{}, "Delete/disable labels")
+	return endpointLabelsCmd
 }
 
 // printEndpointLabels pretty prints labels with tabs

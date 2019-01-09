@@ -20,22 +20,19 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// endpointDisconnectCmd represents the endpoint_disconnect command
-var endpointDisconnectCmd = &cobra.Command{
-	Use:    "disconnect <endpoint-id>",
-	Short:  "Disconnect an endpoint from the network",
-	PreRun: requireEndpointID,
-	Run: func(cmd *cobra.Command, args []string) {
-		id := args[0]
-		if err := client.EndpointDelete(id); err != nil {
-			Fatalf("Cannot disconnect endpoint %s: %s\n", id, err)
-		} else {
-			fmt.Printf("Endpoint %s successfully disconnected\n", id)
-		}
-	},
-}
-
-func init() {
-	endpointCmd.AddCommand(endpointDisconnectCmd)
-
+// newEndpointDisconnectCommand returns the endpoint_disconnect command.
+func newEndpointDisconnectCommand() *cobra.Command {
+	return &cobra.Command{
+		Use:    "disconnect <endpoint-id>",
+		Short:  "Disconnect an endpoint from the network",
+		PreRun: requireEndpointID,
+		Run: func(cmd *cobra.Command, args []string) {
+			id := args[0]
+			if err := client.EndpointDelete(id); err != nil {
+				Fatalf("Cannot disconnect endpoint %s: %s\n", id, err)
+			} else {
+				fmt.Printf("Endpoint %s successfully disconnected\n", id)
+			}
+		},
+	}
 }

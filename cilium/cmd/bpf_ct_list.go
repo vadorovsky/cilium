@@ -25,21 +25,20 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// bpfCtListCmd represents the bpf_ct_list command
-var bpfCtListCmd = &cobra.Command{
-	Use:     "list ( <endpoint identifier> | global )",
-	Aliases: []string{"ls"},
-	Short:   "List connection tracking entries",
-	PreRun:  requireEndpointIDorGlobal,
-	Run: func(cmd *cobra.Command, args []string) {
-		common.RequireRootPrivilege("cilium bpf ct list")
-		dumpCt(args[0])
-	},
-}
-
-func init() {
-	bpfCtCmd.AddCommand(bpfCtListCmd)
+// newBpfCtListCommand returns the bpf_ct_list command.
+func newBpfCtListCommand() *cobra.Command {
+	bpfCtListCmd := &cobra.Command{
+		Use:     "list ( <endpoint identifier> | global )",
+		Aliases: []string{"ls"},
+		Short:   "List connection tracking entries",
+		PreRun:  requireEndpointIDorGlobal,
+		Run: func(cmd *cobra.Command, args []string) {
+			common.RequireRootPrivilege("cilium bpf ct list")
+			dumpCt(args[0])
+		},
+	}
 	command.AddJSONOutput(bpfCtListCmd)
+	return bpfCtListCmd
 }
 
 func dumpCt(eID string) {

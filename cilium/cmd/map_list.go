@@ -26,34 +26,39 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// mapListCmd represents the map_list command
-var mapListCmd = &cobra.Command{
-	Use:     "list",
-	Short:   "List all open BPF maps",
-	Example: "cilium map list",
-	Run: func(cmd *cobra.Command, args []string) {
-		resp, err := client.Daemon.GetMap(nil)
-		if err != nil {
-			Fatalf("%s", err)
-		}
-
-		mapList := resp.Payload
-		if mapList == nil {
-			return
-		}
-
-		if command.OutputJSON() {
-			if err := command.PrintOutput(mapList); err != nil {
-				os.Exit(1)
+// newMapListCommand returns the map_list command.
+func newMapListCommand() *cobra.Command {
+	mapListCmd := &cobra.Command{
+		Use:     "list",
+		Short:   "List all open BPF maps",
+		Example: "cilium map list",
+		Run: func(cmd *cobra.Command, args []string) {
+			resp, err := client.Daemon.GetMap(nil)
+			if err != nil {
+				Fatalf("%s", err)
 			}
-		} else if mapList.Maps != nil {
-			if verbose {
-				printMapListVerbose(mapList)
-			} else {
-				printMapList(mapList)
+
+			mapList := resp.Payload
+			if mapList == nil {
+				return
 			}
-		}
-	},
+
+			if command.OutputJSON() {
+				if err := command.PrintOutput(mapList); err != nil {
+					os.Exit(1)
+				}
+			} else if mapList.Maps != nil {
+				if verbose {
+					printMapListVerbose(mapList)
+				} else {
+					printMapList(mapList)
+				}
+			}
+		},
+	}
+	command.AddJSONOutput(mapListCmd)
+	mapListCmd.Flags().BoolVar(&verbose, "verbose", false, "Print cache contents of all maps")
+	return mapListCmd
 }
 
 func printMapListVerbose(mapList *models.BPFMapList) {
@@ -83,10 +88,4 @@ func printMapList(mapList *models.BPFMapList) {
 			path.Base(m.Path), entries, errors, cacheEnabled)
 	}
 	w.Flush()
-}
-
-func init() {
-	mapCmd.AddCommand(mapListCmd)
-	command.AddJSONOutput(mapListCmd)
-	mapListCmd.Flags().BoolVar(&verbose, "verbose", false, "Print cache contents of all maps")
 }

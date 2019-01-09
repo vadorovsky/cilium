@@ -24,18 +24,17 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var preFilterListCmd = &cobra.Command{
-	Use:     "list",
-	Aliases: []string{"ls"},
-	Short:   "List CIDR filters",
-	Run: func(cmd *cobra.Command, args []string) {
-		listFilters(cmd, args)
-	},
-}
-
-func init() {
-	preFilterCmd.AddCommand(preFilterListCmd)
+func newPreFilterListCommand() *cobra.Command {
+	preFilterListCmd := &cobra.Command{
+		Use:     "list",
+		Aliases: []string{"ls"},
+		Short:   "List CIDR filters",
+		Run: func(cmd *cobra.Command, args []string) {
+			listFilters(cmd, args)
+		},
+	}
 	command.AddJSONOutput(preFilterListCmd)
+	return preFilterListCmd
 }
 
 func listFilters(cmd *cobra.Command, args []string) {

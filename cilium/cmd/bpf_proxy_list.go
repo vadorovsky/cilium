@@ -28,34 +28,33 @@ const (
 	destinationTitle = "VALUE"
 )
 
-// bpfProxyListCmd represents the bpf_proxy_list command
-var bpfProxyListCmd = &cobra.Command{
-	Use:     "list",
-	Aliases: []string{"ls"},
-	Short:   "List proxy configuration",
-	Run: func(cmd *cobra.Command, args []string) {
-		common.RequireRootPrivilege("cilium bpf proxy list")
+// newBpfProxyListCommand returns the bpf_proxy_list command.
+func newBpfProxyListCommand() *cobra.Command {
+	bpfProxyListCmd := &cobra.Command{
+		Use:     "list",
+		Aliases: []string{"ls"},
+		Short:   "List proxy configuration",
+		Run: func(cmd *cobra.Command, args []string) {
+			common.RequireRootPrivilege("cilium bpf proxy list")
 
-		proxyList := make(map[string][]string)
-		if err := proxymap.Proxy4Map.Dump(proxyList); err != nil {
-			os.Exit(1)
-		}
-		if err := proxymap.Proxy6Map.Dump(proxyList); err != nil {
-			os.Exit(1)
-		}
-
-		if command.OutputJSON() {
-			if err := command.PrintOutput(proxyList); err != nil {
+			proxyList := make(map[string][]string)
+			if err := proxymap.Proxy4Map.Dump(proxyList); err != nil {
 				os.Exit(1)
 			}
-			return
-		}
+			if err := proxymap.Proxy6Map.Dump(proxyList); err != nil {
+				os.Exit(1)
+			}
 
-		TablePrinter(proxyTitle, destinationTitle, proxyList)
-	},
-}
+			if command.OutputJSON() {
+				if err := command.PrintOutput(proxyList); err != nil {
+					os.Exit(1)
+				}
+				return
+			}
 
-func init() {
-	bpfProxyCmd.AddCommand(bpfProxyListCmd)
+			TablePrinter(proxyTitle, destinationTitle, proxyList)
+		},
+	}
 	command.AddJSONOutput(bpfProxyListCmd)
+	return bpfProxyListCmd
 }

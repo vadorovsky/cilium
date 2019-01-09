@@ -32,47 +32,46 @@ const (
 
 var listRevNAT bool
 
-// bpfCtListCmd represents the bpf_ct_list command
-var bpfLBListCmd = &cobra.Command{
-	Use:     "list",
-	Aliases: []string{"ls"},
-	Short:   "List load-balancing configuration",
-	Run: func(cmd *cobra.Command, args []string) {
-		common.RequireRootPrivilege("cilium bpf lb list")
+// newBpfLBListCommand returns the bpf_ct_list command.
+func newBpfLBListCommand() *cobra.Command {
+	bpfLBListCmd := &cobra.Command{
+		Use:     "list",
+		Aliases: []string{"ls"},
+		Short:   "List load-balancing configuration",
+		Run: func(cmd *cobra.Command, args []string) {
+			common.RequireRootPrivilege("cilium bpf lb list")
 
-		var firstTitle string
-		serviceList := make(map[string][]string)
-		if listRevNAT {
-			firstTitle = idTitle
-			if err := lbmap.RevNat4Map.Dump(serviceList); err != nil {
-				os.Exit(1)
+			var firstTitle string
+			serviceList := make(map[string][]string)
+			if listRevNAT {
+				firstTitle = idTitle
+				if err := lbmap.RevNat4Map.Dump(serviceList); err != nil {
+					os.Exit(1)
+				}
+				if err := lbmap.RevNat6Map.Dump(serviceList); err != nil {
+					os.Exit(1)
+				}
+			} else {
+				firstTitle = serviceAddressTitle
+				if err := lbmap.Service4Map.Dump(serviceList); err != nil {
+					os.Exit(1)
+				}
+				if err := lbmap.Service6Map.Dump(serviceList); err != nil {
+					os.Exit(1)
+				}
 			}
-			if err := lbmap.RevNat6Map.Dump(serviceList); err != nil {
-				os.Exit(1)
-			}
-		} else {
-			firstTitle = serviceAddressTitle
-			if err := lbmap.Service4Map.Dump(serviceList); err != nil {
-				os.Exit(1)
-			}
-			if err := lbmap.Service6Map.Dump(serviceList); err != nil {
-				os.Exit(1)
-			}
-		}
 
-		if command.OutputJSON() {
-			if err := command.PrintOutput(serviceList); err != nil {
-				os.Exit(1)
+			if command.OutputJSON() {
+				if err := command.PrintOutput(serviceList); err != nil {
+					os.Exit(1)
+				}
+				return
 			}
-			return
-		}
 
-		TablePrinter(firstTitle, backendAddressTitle, serviceList)
-	},
-}
-
-func init() {
-	bpfLBCmd.AddCommand(bpfLBListCmd)
+			TablePrinter(firstTitle, backendAddressTitle, serviceList)
+		},
+	}
 	bpfLBListCmd.Flags().BoolVarP(&listRevNAT, "revnat", "", false, "List reverse NAT entries")
 	command.AddJSONOutput(bpfLBListCmd)
+	return bpfLBListCmd
 }

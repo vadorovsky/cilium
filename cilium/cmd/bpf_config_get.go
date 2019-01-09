@@ -26,25 +26,24 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// bpfConfigGetCmd represents the bpf_config_get command
-var bpfConfigGetCmd = &cobra.Command{
-	Use:   "get",
-	Short: "List contents of an endpoint config BPF map",
-	Run: func(cmd *cobra.Command, args []string) {
-		common.RequireRootPrivilege("cilium bpf config get")
-		requireEndpointID(cmd, args)
+// newBpfConfigGetCommand returns the bpf_config_get command.
+func newBpfConfigGetCommand() *cobra.Command {
+	bpfConfigGetCmd := &cobra.Command{
+		Use:   "get",
+		Short: "List contents of an endpoint config BPF map",
+		Run: func(cmd *cobra.Command, args []string) {
+			common.RequireRootPrivilege("cilium bpf config get")
+			requireEndpointID(cmd, args)
 
-		if true {
-			fmt.Printf("directly dumping endpoint config maps is not supported right now; See GH-6228 for more information\n")
-			return
-		}
-		listEndpointConfigMap(args)
-	},
-}
-
-func init() {
-	bpfConfigCmd.AddCommand(bpfConfigGetCmd)
-	command.AddJSONOutput(bpfConfigCmd)
+			if true {
+				fmt.Printf("directly dumping endpoint config maps is not supported right now; See GH-6228 for more information\n")
+				return
+			}
+			listEndpointConfigMap(args)
+		},
+	}
+	command.AddJSONOutput(bpfConfigGetCmd)
+	return bpfConfigGetCmd
 }
 
 func listEndpointConfigMap(args []string) {
@@ -78,7 +77,7 @@ func listEndpointConfigMap(args []string) {
 
 	fmt.Printf("bpfConfigGet: %s\n", bpfConfigGet)
 	if command.OutputJSON() {
-		if err := command.PrintOutput(bpfConfigCmd); err != nil {
+		if err := command.PrintOutput(bpfConfigGet); err != nil {
 			os.Exit(1)
 		}
 		return

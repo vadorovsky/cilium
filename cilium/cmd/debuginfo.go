@@ -67,10 +67,17 @@ var outputTypes = [...]string{
 	jsonpathOutput,
 }
 
-var debuginfoCmd = &cobra.Command{
-	Use:   "debuginfo",
-	Short: "Request available debugging information from agent",
-	Run:   runDebugInfo,
+func newDebugInfoCommand() *cobra.Command {
+	debuginfoCmd := &cobra.Command{
+		Use:   "debuginfo",
+		Short: "Request available debugging information from agent",
+		Run:   runDebugInfo,
+	}
+	debuginfoCmd.Flags().BoolVarP(&outputToFile, "file", "f", false, "Redirect output to file(s)")
+	debuginfoCmd.Flags().BoolVarP(&filePerCommand, "file-per-command", "", false, "Generate a single file per command")
+	debuginfoCmd.Flags().StringSliceVar(&outputOpts, "output", []string{}, "markdown| html| json| jsonpath='{}'")
+	debuginfoCmd.Flags().StringVar(&outputDir, "output-directory", "", "directory for files (if specified will use directory in which this command was ran)")
+	return debuginfoCmd
 }
 
 var (
@@ -93,14 +100,6 @@ var sections = map[string]addSection{
 	"cilium-policy":           addCiliumPolicy,
 	"cilium-memory-map":       addCiliumMemoryMap,
 	"cilium-subsystems":       addSubsystems,
-}
-
-func init() {
-	rootCmd.AddCommand(debuginfoCmd)
-	debuginfoCmd.Flags().BoolVarP(&outputToFile, "file", "f", false, "Redirect output to file(s)")
-	debuginfoCmd.Flags().BoolVarP(&filePerCommand, "file-per-command", "", false, "Generate a single file per command")
-	debuginfoCmd.Flags().StringSliceVar(&outputOpts, "output", []string{}, "markdown| html| json| jsonpath='{}'")
-	debuginfoCmd.Flags().StringVar(&outputDir, "output-directory", "", "directory for files (if specified will use directory in which this command was ran)")
 }
 
 func validateInput() []outputType {

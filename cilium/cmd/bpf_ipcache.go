@@ -18,12 +18,13 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// bpfIPCacheCmd represents the bpf command
-var bpfIPCacheCmd = &cobra.Command{
-	Use:   "ipcache",
-	Short: "Manage the IPCache mappings for IP/CIDR <-> Identity",
-}
-
-func init() {
-	bpfCmd.AddCommand(bpfIPCacheCmd)
+// newBpfIPCacheCommand returns the bpf IP cache command.
+func newBpfIPCacheCommand() *cobra.Command {
+	bpfIPCacheCmd := &cobra.Command{
+		Use:   "ipcache",
+		Short: "Manage the IPCache mappings for IP/CIDR <-> Identity",
+	}
+	bpfIPCacheCmd.AddCommand(newBpfIPCacheGetCommand())
+	bpfIPCacheCmd.AddCommand(newBpfIPCacheListCommand())
+	return bpfIPCacheCmd
 }

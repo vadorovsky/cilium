@@ -25,26 +25,25 @@ var (
 	value string
 )
 
-var kvstoreSetCmd = &cobra.Command{
-	Use:     "set [options] <key>",
-	Short:   "Set a key and value",
-	Example: "cilium kvstore set foo=bar",
-	Run: func(cmd *cobra.Command, args []string) {
-		if key == "" {
-			Fatalf("--key attribute reqiured")
-		}
+func newKvstoreSetCommand() *cobra.Command {
+	kvstoreSetCmd := &cobra.Command{
+		Use:     "set [options] <key>",
+		Short:   "Set a key and value",
+		Example: "cilium kvstore set foo=bar",
+		Run: func(cmd *cobra.Command, args []string) {
+			if key == "" {
+				Fatalf("--key attribute reqiured")
+			}
 
-		setupKvstore()
+			setupKvstore()
 
-		err := kvstore.Set(key, []byte(value))
-		if err != nil {
-			Fatalf("Unable to set key: %s", err)
-		}
-	},
-}
-
-func init() {
-	kvstoreCmd.AddCommand(kvstoreSetCmd)
+			err := kvstore.Set(key, []byte(value))
+			if err != nil {
+				Fatalf("Unable to set key: %s", err)
+			}
+		},
+	}
 	kvstoreSetCmd.Flags().StringVar(&key, "key", "", "Key")
 	kvstoreSetCmd.Flags().StringVar(&value, "value", "", "Value")
+	return kvstoreSetCmd
 }

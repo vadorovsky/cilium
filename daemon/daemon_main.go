@@ -63,7 +63,6 @@ import (
 	"github.com/cilium/cilium/pkg/workloads"
 
 	"github.com/go-openapi/loads"
-	gops "github.com/google/gops/agent"
 	go_version "github.com/hashicorp/go-version"
 	"github.com/jessevdk/go-flags"
 	"github.com/sirupsen/logrus"
@@ -150,9 +149,16 @@ var (
 	})
 	containerRuntimesOpts = make(map[string]string)
 	cfgFile               string
+)
 
-	// RootCmd represents the base command when called without any subcommands
-	RootCmd = &cobra.Command{
+func init() {
+	logging.DefaultLogger.Hooks.Add(metrics.NewLoggingHook(components.CiliumAgentName))
+}
+
+// NewCommand returns an instance of cilium-agent command.
+func NewCommand() *cobra.Command {
+	// cmd represents the base command when called without any subcommands
+	cmd := &cobra.Command{
 		Use:   "cilium-agent",
 		Short: "Run the cilium agent",
 		Run: func(cmd *cobra.Command, args []string) {
@@ -160,183 +166,8 @@ var (
 			runDaemon()
 		},
 	}
-)
 
-func init() {
-	logging.DefaultLogger.Hooks.Add(metrics.NewLoggingHook(components.CiliumAgentName))
-}
-
-func daemonMain() {
-
-	// Open socket for using gops to get stacktraces of the agent.
-	if err := gops.Listen(gops.Options{}); err != nil {
-		errorString := fmt.Sprintf("unable to start gops: %s", err)
-		fmt.Println(errorString)
-		os.Exit(-1)
-	}
-
-	if err := RootCmd.Execute(); err != nil {
-		fmt.Println(err)
-		os.Exit(-1)
-	}
-}
-
-func parseKernelVersion(ver string) (*go_version.Version, error) {
-	verStrs := strings.Split(ver, ".")
-	switch {
-	case len(verStrs) < 2:
-		return nil, fmt.Errorf("unable to get kernel version from %q", ver)
-	case len(verStrs) < 3:
-		verStrs = append(verStrs, "0")
-	}
-	// We are assuming the kernel version will be something as:
-	// 4.9.17-040917-generic
-
-	// If verStrs is []string{ "4", "9", "17-040917-generic" }
-	// then we need to retrieve patch number.
-	patch := regexp.MustCompilePOSIX(`^[0-9]+`).FindString(verStrs[2])
-	if patch == "" {
-		verStrs[2] = "0"
-	} else {
-		verStrs[2] = patch
-	}
-	return go_version.NewVersion(strings.Join(verStrs[:3], "."))
-}
-
-func getKernelVersion() (*go_version.Version, error) {
-	var unameBuf unix.Utsname
-	if err := unix.Uname(&unameBuf); err != nil {
-		log.WithError(err).Fatal("kernel version: NOT OK")
-	}
-	return parseKernelVersion(string(unameBuf.Release[:]))
-}
-
-func getClangVersion(filePath string) (*go_version.Version, error) {
-	verOut, err := exec.Command(filePath, "--version").CombinedOutput()
-	if err != nil {
-		log.WithError(err).Fatal("clang version: NOT OK")
-	}
-	res := regexp.MustCompile(`(clang version )([^ ]*)`).FindStringSubmatch(string(verOut))
-	if len(res) != 3 {
-		log.Fatalf("clang version: NOT OK: unable to get clang's version "+
-			"from: %q", string(verOut))
-	}
-	// at this point res is []string{"clang", "version", "maj.min.patch"}
-	verStrs := strings.Split(res[2], ".")
-	if len(verStrs) < 3 {
-		return nil, fmt.Errorf("unable to get clang version from %q", string(verOut))
-	}
-	v := strings.Join(verStrs[:3], ".")
-	// Handle Ubuntu versioning by removing the dash and everything after.
-	// F. ex. `4.0.0-1ubuntu1~16 -> 4.0.0` and `3.8.0-2ubuntu4 -> 3.8.0`.
-	v = strings.Split(v, "-")[0]
-	return go_version.NewVersion(v)
-}
-
-func checkBPFLogs(logType string, fatal bool) {
-	bpfLogFile := logType + ".log"
-	bpfLogPath := filepath.Join(option.Config.StateDir, bpfLogFile)
-
-	if _, err := os.Stat(bpfLogPath); os.IsNotExist(err) {
-		log.Infof("%s check: OK!", logType)
-	} else if err == nil {
-		bpfFeaturesLog, err := ioutil.ReadFile(bpfLogPath)
-		if err != nil {
-			log.WithError(err).WithField(logfields.Path, bpfLogPath).Fatalf("%s check: NOT OK. Unable to read", logType)
-		}
-		printer := log.Debugf
-		if fatal {
-			printer = log.Errorf
-			printer("%s check: NOT OK", logType)
-		} else {
-			printer("%s check: Some features may be limited:", logType)
-		}
-		lines := strings.Trim(string(bpfFeaturesLog), "\n")
-		for _, line := range strings.Split(lines, "\n") {
-			printer(line)
-		}
-		if fatal {
-			log.Fatalf("%s check failed.", logType)
-		}
-	} else {
-		log.WithError(err).WithField(logfields.Path, bpfLogPath).Fatalf("%s check: NOT OK. Unable to read", logType)
-	}
-}
-
-func checkMinRequirements() {
-	kernelVersion, err := getKernelVersion()
-	if err != nil {
-		log.WithError(err).Fatal("kernel version: NOT OK")
-	}
-	if !minKernelVer.Check(kernelVersion) {
-		log.Fatalf("kernel version: NOT OK: minimal supported kernel "+
-			"version is %s; kernel version that is running is: %s", minKernelVer, kernelVersion)
-	}
-
-	if filePath, err := exec.LookPath("clang"); err != nil {
-		log.WithError(err).Fatal("clang: NOT OK")
-	} else {
-		clangVersion, err := getClangVersion(filePath)
-		if err != nil {
-			log.WithError(err).Fatal("clang: NOT OK")
-		}
-		if !minClangVer.Check(clangVersion) {
-			log.Fatalf("clang version: NOT OK: minimal supported clang "+
-				"version is %s; clang version that is running is: %s", minClangVer, clangVersion)
-		}
-		//clang >= 3.9 / kernel < 4.9 - does not work
-		if recClangVer.Check(clangVersion) && !recKernelVer.Check(kernelVersion) {
-			log.Fatalf("clang (%s) and kernel (%s) version: NOT OK: please upgrade "+
-				"your kernel version to at least %s",
-				clangVersion, kernelVersion, recKernelVer)
-		}
-		log.Infof("clang (%s) and kernel (%s) versions: OK!", clangVersion, kernelVersion)
-	}
-
-	if filePath, err := exec.LookPath("llc"); err != nil {
-		log.WithError(err).Fatal("llc: NOT OK")
-	} else {
-		lccVersion, err := exec.Command(filePath, "--version").CombinedOutput()
-		if err == nil {
-			if strings.Contains(strings.ToLower(string(lccVersion)), "debug") {
-				log.Warn("llc version was compiled in debug mode, expect higher latency!")
-			}
-		}
-		// /usr/include/gnu/stubs-32.h is installed by 'glibc-devel.i686' in fedora
-		// /usr/include/sys/cdefs.h is installed by 'libc6-dev-i386' in ubuntu
-		// both files exist on both systems but cdefs.h already exists in fedora
-		// without 'glibc-devel.i686' so we check for 'stubs-32.h first.
-		if _, err := os.Stat("/usr/include/gnu/stubs-32.h"); os.IsNotExist(err) {
-			log.Fatal("linking environment: NOT OK, please make sure you have 'glibc-devel.i686' if you use fedora system or 'libc6-dev-i386' if you use ubuntu system")
-		}
-		if _, err := os.Stat("/usr/include/sys/cdefs.h"); os.IsNotExist(err) {
-			log.Fatal("linking environment: NOT OK, please make sure you have 'libc6-dev-i386' in your ubuntu system")
-		}
-		log.Info("linking environment: OK!")
-	}
-
-	globalsDir := option.Config.GetGlobalsDir()
-	if err := os.MkdirAll(globalsDir, defaults.StateDirRights); err != nil {
-		log.WithError(err).WithField(logfields.Path, globalsDir).Fatal("Could not create runtime directory")
-	}
-	if err := os.Chdir(option.Config.LibDir); err != nil {
-		log.WithError(err).WithField(logfields.Path, option.Config.LibDir).Fatal("Could not change to runtime directory")
-	}
-	probeScript := filepath.Join(option.Config.BpfDir, "run_probes.sh")
-	if err := exec.Command(probeScript, option.Config.BpfDir, option.Config.StateDir).Run(); err != nil {
-		log.WithError(err).Fatal("BPF Verifier: NOT OK. Unable to run checker for bpf_features")
-	}
-	featuresFilePath := filepath.Join(globalsDir, "bpf_features.h")
-	if _, err := os.Stat(featuresFilePath); os.IsNotExist(err) {
-		log.WithError(err).WithField(logfields.Path, globalsDir).Fatal("BPF Verifier: NOT OK. Unable to read bpf_features.h")
-	}
-
-	checkBPFLogs("bpf_requirements", true)
-	checkBPFLogs("bpf_features", false)
-	bpf.ReadFeatureProbes(featuresFilePath)
-}
-
-func init() {
+	// Initialize flags
 	cobra.OnInitialize(initConfig)
 	flags := RootCmd.Flags()
 	flags.StringVar(&option.Config.AccessLog,
@@ -526,6 +357,161 @@ func init() {
 		"tofqdns-enable-poller", false, "Enable proactive polling of DNS names in toFQDNs.matchName rules.")
 
 	viper.BindPFlags(flags)
+}
+
+func parseKernelVersion(ver string) (*go_version.Version, error) {
+	verStrs := strings.Split(ver, ".")
+	switch {
+	case len(verStrs) < 2:
+		return nil, fmt.Errorf("unable to get kernel version from %q", ver)
+	case len(verStrs) < 3:
+		verStrs = append(verStrs, "0")
+	}
+	// We are assuming the kernel version will be something as:
+	// 4.9.17-040917-generic
+
+	// If verStrs is []string{ "4", "9", "17-040917-generic" }
+	// then we need to retrieve patch number.
+	patch := regexp.MustCompilePOSIX(`^[0-9]+`).FindString(verStrs[2])
+	if patch == "" {
+		verStrs[2] = "0"
+	} else {
+		verStrs[2] = patch
+	}
+	return go_version.NewVersion(strings.Join(verStrs[:3], "."))
+}
+
+func getKernelVersion() (*go_version.Version, error) {
+	var unameBuf unix.Utsname
+	if err := unix.Uname(&unameBuf); err != nil {
+		log.WithError(err).Fatal("kernel version: NOT OK")
+	}
+	return parseKernelVersion(string(unameBuf.Release[:]))
+}
+
+func getClangVersion(filePath string) (*go_version.Version, error) {
+	verOut, err := exec.Command(filePath, "--version").CombinedOutput()
+	if err != nil {
+		log.WithError(err).Fatal("clang version: NOT OK")
+	}
+	res := regexp.MustCompile(`(clang version )([^ ]*)`).FindStringSubmatch(string(verOut))
+	if len(res) != 3 {
+		log.Fatalf("clang version: NOT OK: unable to get clang's version "+
+			"from: %q", string(verOut))
+	}
+	// at this point res is []string{"clang", "version", "maj.min.patch"}
+	verStrs := strings.Split(res[2], ".")
+	if len(verStrs) < 3 {
+		return nil, fmt.Errorf("unable to get clang version from %q", string(verOut))
+	}
+	v := strings.Join(verStrs[:3], ".")
+	// Handle Ubuntu versioning by removing the dash and everything after.
+	// F. ex. `4.0.0-1ubuntu1~16 -> 4.0.0` and `3.8.0-2ubuntu4 -> 3.8.0`.
+	v = strings.Split(v, "-")[0]
+	return go_version.NewVersion(v)
+}
+
+func checkBPFLogs(logType string, fatal bool) {
+	bpfLogFile := logType + ".log"
+	bpfLogPath := filepath.Join(option.Config.StateDir, bpfLogFile)
+
+	if _, err := os.Stat(bpfLogPath); os.IsNotExist(err) {
+		log.Infof("%s check: OK!", logType)
+	} else if err == nil {
+		bpfFeaturesLog, err := ioutil.ReadFile(bpfLogPath)
+		if err != nil {
+			log.WithError(err).WithField(logfields.Path, bpfLogPath).Fatalf("%s check: NOT OK. Unable to read", logType)
+		}
+		printer := log.Debugf
+		if fatal {
+			printer = log.Errorf
+			printer("%s check: NOT OK", logType)
+		} else {
+			printer("%s check: Some features may be limited:", logType)
+		}
+		lines := strings.Trim(string(bpfFeaturesLog), "\n")
+		for _, line := range strings.Split(lines, "\n") {
+			printer(line)
+		}
+		if fatal {
+			log.Fatalf("%s check failed.", logType)
+		}
+	} else {
+		log.WithError(err).WithField(logfields.Path, bpfLogPath).Fatalf("%s check: NOT OK. Unable to read", logType)
+	}
+}
+
+func checkMinRequirements() {
+	kernelVersion, err := getKernelVersion()
+	if err != nil {
+		log.WithError(err).Fatal("kernel version: NOT OK")
+	}
+	if !minKernelVer.Check(kernelVersion) {
+		log.Fatalf("kernel version: NOT OK: minimal supported kernel "+
+			"version is %s; kernel version that is running is: %s", minKernelVer, kernelVersion)
+	}
+
+	if filePath, err := exec.LookPath("clang"); err != nil {
+		log.WithError(err).Fatal("clang: NOT OK")
+	} else {
+		clangVersion, err := getClangVersion(filePath)
+		if err != nil {
+			log.WithError(err).Fatal("clang: NOT OK")
+		}
+		if !minClangVer.Check(clangVersion) {
+			log.Fatalf("clang version: NOT OK: minimal supported clang "+
+				"version is %s; clang version that is running is: %s", minClangVer, clangVersion)
+		}
+		//clang >= 3.9 / kernel < 4.9 - does not work
+		if recClangVer.Check(clangVersion) && !recKernelVer.Check(kernelVersion) {
+			log.Fatalf("clang (%s) and kernel (%s) version: NOT OK: please upgrade "+
+				"your kernel version to at least %s",
+				clangVersion, kernelVersion, recKernelVer)
+		}
+		log.Infof("clang (%s) and kernel (%s) versions: OK!", clangVersion, kernelVersion)
+	}
+
+	if filePath, err := exec.LookPath("llc"); err != nil {
+		log.WithError(err).Fatal("llc: NOT OK")
+	} else {
+		lccVersion, err := exec.Command(filePath, "--version").CombinedOutput()
+		if err == nil {
+			if strings.Contains(strings.ToLower(string(lccVersion)), "debug") {
+				log.Warn("llc version was compiled in debug mode, expect higher latency!")
+			}
+		}
+		// /usr/include/gnu/stubs-32.h is installed by 'glibc-devel.i686' in fedora
+		// /usr/include/sys/cdefs.h is installed by 'libc6-dev-i386' in ubuntu
+		// both files exist on both systems but cdefs.h already exists in fedora
+		// without 'glibc-devel.i686' so we check for 'stubs-32.h first.
+		if _, err := os.Stat("/usr/include/gnu/stubs-32.h"); os.IsNotExist(err) {
+			log.Fatal("linking environment: NOT OK, please make sure you have 'glibc-devel.i686' if you use fedora system or 'libc6-dev-i386' if you use ubuntu system")
+		}
+		if _, err := os.Stat("/usr/include/sys/cdefs.h"); os.IsNotExist(err) {
+			log.Fatal("linking environment: NOT OK, please make sure you have 'libc6-dev-i386' in your ubuntu system")
+		}
+		log.Info("linking environment: OK!")
+	}
+
+	globalsDir := option.Config.GetGlobalsDir()
+	if err := os.MkdirAll(globalsDir, defaults.StateDirRights); err != nil {
+		log.WithError(err).WithField(logfields.Path, globalsDir).Fatal("Could not create runtime directory")
+	}
+	if err := os.Chdir(option.Config.LibDir); err != nil {
+		log.WithError(err).WithField(logfields.Path, option.Config.LibDir).Fatal("Could not change to runtime directory")
+	}
+	probeScript := filepath.Join(option.Config.BpfDir, "run_probes.sh")
+	if err := exec.Command(probeScript, option.Config.BpfDir, option.Config.StateDir).Run(); err != nil {
+		log.WithError(err).Fatal("BPF Verifier: NOT OK. Unable to run checker for bpf_features")
+	}
+	featuresFilePath := filepath.Join(globalsDir, "bpf_features.h")
+	if _, err := os.Stat(featuresFilePath); os.IsNotExist(err) {
+		log.WithError(err).WithField(logfields.Path, globalsDir).Fatal("BPF Verifier: NOT OK. Unable to read bpf_features.h")
+	}
+
+	checkBPFLogs("bpf_requirements", true)
+	checkBPFLogs("bpf_features", false)
+	bpf.ReadFeatureProbes(featuresFilePath)
 }
 
 // RestoreExecPermissions restores file permissions to 0740 of all files inside

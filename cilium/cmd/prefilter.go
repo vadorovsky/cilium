@@ -18,12 +18,14 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// preFilterCmd represents the prefilter command
-var preFilterCmd = &cobra.Command{
-	Use:   "prefilter",
-	Short: "Manage XDP CIDR filters",
-}
-
-func init() {
-	rootCmd.AddCommand(preFilterCmd)
+// newPreFilterCommand returns the prefilter command.
+func newPreFilterCommand() *cobra.Command {
+	preFilterCmd := &cobra.Command{
+		Use:   "prefilter",
+		Short: "Manage XDP CIDR filters",
+	}
+	preFilterCmd.AddCommand(newPreFilterDeleteCommand())
+	preFilterCmd.AddCommand(newPreFilterListCommand())
+	preFilterCmd.AddCommand(newPreFilterUpdateCommand())
+	return preFilterCmd
 }

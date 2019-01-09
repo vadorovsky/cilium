@@ -27,19 +27,18 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// serviceListCmd represents the service_list command
-var serviceListCmd = &cobra.Command{
-	Use:     "list",
-	Aliases: []string{"ls"},
-	Short:   "List services",
-	Run: func(cmd *cobra.Command, args []string) {
-		listServices(cmd, args)
-	},
-}
-
-func init() {
-	serviceCmd.AddCommand(serviceListCmd)
+// newServiceListCommand returns the service_list command.
+func newServiceListCommand() *cobra.Command {
+	serviceListCmd := &cobra.Command{
+		Use:     "list",
+		Aliases: []string{"ls"},
+		Short:   "List services",
+		Run: func(cmd *cobra.Command, args []string) {
+			listServices(cmd, args)
+		},
+	}
 	command.AddJSONOutput(serviceListCmd)
+	return serviceListCmd
 }
 
 func listServices(cmd *cobra.Command, args []string) {

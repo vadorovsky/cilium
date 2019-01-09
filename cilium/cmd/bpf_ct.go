@@ -18,12 +18,13 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// bpfCtCmd represents the bpf_ct command
-var bpfCtCmd = &cobra.Command{
-	Use:   "ct",
-	Short: "Connection tracking tables",
-}
-
-func init() {
-	bpfCmd.AddCommand(bpfCtCmd)
+// newBpfCtCmd returns the bpf_ct command.
+func newBpfCtCmd() *cobra.Command {
+	bpfCtCmd := &cobra.Command{
+		Use:   "ct",
+		Short: "Connection tracking tables",
+	}
+	bpfCtCmd.AddCommand(newBpfCtFlushCommand())
+	bpfCtCmd.AddCommand(newBpfCtListCommand())
+	return bpfCtCmd
 }

@@ -18,12 +18,13 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// mapCmd represents the map command
-var mapCmd = &cobra.Command{
-	Use:   "map",
-	Short: "Access BPF maps",
-}
-
-func init() {
-	rootCmd.AddCommand(mapCmd)
+// newMapCommand returns the map command.
+func newMapCommand() *cobra.Command {
+	mapCmd := &cobra.Command{
+		Use:   "map",
+		Short: "Access BPF maps",
+	}
+	mapCmd.AddCommand(newMapGetCommand())
+	mapCmd.AddCommand(newMapListCommand())
+	return mapCmd
 }

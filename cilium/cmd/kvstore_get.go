@@ -24,51 +24,50 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var kvstoreGetCmd = &cobra.Command{
-	Use:     "get [options] <key>",
-	Short:   "Retrieve a key",
-	Example: "cilium kvstore get --recursive foo",
-	Run: func(cmd *cobra.Command, args []string) {
-		key := ""
+func newKvstoreGetCommand() *cobra.Command {
+	kvstoreGetCmd := &cobra.Command{
+		Use:     "get [options] <key>",
+		Short:   "Retrieve a key",
+		Example: "cilium kvstore get --recursive foo",
+		Run: func(cmd *cobra.Command, args []string) {
+			key := ""
 
-		setupKvstore()
+			setupKvstore()
 
-		if len(args) > 0 {
-			key = args[0]
-		}
-
-		if recursive {
-			pairs, err := kvstore.ListPrefix(key)
-			if err != nil {
-				Fatalf("Unable to list keys: %s", err)
+			if len(args) > 0 {
+				key = args[0]
 			}
-			if command.OutputJSON() {
-				if err := command.PrintOutput(pairs); err != nil {
-					os.Exit(1)
+
+			if recursive {
+				pairs, err := kvstore.ListPrefix(key)
+				if err != nil {
+					Fatalf("Unable to list keys: %s", err)
 				}
-				return
-			}
-			for k, v := range pairs {
-				fmt.Printf("%s => %s\n", k, string(v))
-			}
-		} else {
-			val, err := kvstore.Get(key)
-			if err != nil {
-				Fatalf("Unable to retrieve key: %s", err)
-			}
-			if command.OutputJSON() {
-				if err := command.PrintOutput(val); err != nil {
-					os.Exit(1)
+				if command.OutputJSON() {
+					if err := command.PrintOutput(pairs); err != nil {
+						os.Exit(1)
+					}
+					return
 				}
-				return
+				for k, v := range pairs {
+					fmt.Printf("%s => %s\n", k, string(v))
+				}
+			} else {
+				val, err := kvstore.Get(key)
+				if err != nil {
+					Fatalf("Unable to retrieve key: %s", err)
+				}
+				if command.OutputJSON() {
+					if err := command.PrintOutput(val); err != nil {
+						os.Exit(1)
+					}
+					return
+				}
+				fmt.Printf("%s => %s\n", key, string(val))
 			}
-			fmt.Printf("%s => %s\n", key, string(val))
-		}
-	},
-}
-
-func init() {
-	kvstoreCmd.AddCommand(kvstoreGetCmd)
+		},
+	}
 	kvstoreGetCmd.Flags().BoolVar(&recursive, "recursive", false, "Recursive lookup")
 	command.AddJSONOutput(kvstoreGetCmd)
+	return kvstoreGetCmd
 }

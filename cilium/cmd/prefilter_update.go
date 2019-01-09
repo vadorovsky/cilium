@@ -28,18 +28,17 @@ var (
 	cidrs    []string
 )
 
-var preFilterUpdateCmd = &cobra.Command{
-	Use:   "update",
-	Short: "Update CIDR filters",
-	Run: func(cmd *cobra.Command, args []string) {
-		updateFilters(cmd, args)
-	},
-}
-
-func init() {
-	preFilterCmd.AddCommand(preFilterUpdateCmd)
+func newPreFilterUpdateCommand() *cobra.Command {
+	preFilterUpdateCmd := &cobra.Command{
+		Use:   "update",
+		Short: "Update CIDR filters",
+		Run: func(cmd *cobra.Command, args []string) {
+			updateFilters(cmd, args)
+		},
+	}
 	preFilterUpdateCmd.Flags().Uint64VarP(&revision, "revision", "", 0, "Update revision")
 	preFilterUpdateCmd.Flags().StringSliceVarP(&cidrs, "cidr", "", []string{}, "List of CIDR prefixes to block")
+	return preFilterUpdateCmd
 }
 
 func updateFilters(cmd *cobra.Command, args []string) {

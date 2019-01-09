@@ -18,12 +18,20 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// bpfCmd represents the bpf command
-var bpfCmd = &cobra.Command{
-	Use:   "bpf",
-	Short: "Direct access to local BPF maps",
-}
-
-func init() {
-	rootCmd.AddCommand(bpfCmd)
+// newBpfCommand returns the bpf command.
+func newBpfCommand() *cobra.Command {
+	bpfCmd := &cobra.Command{
+		Use:   "bpf",
+		Short: "Direct access to local BPF maps",
+	}
+	bpfCmd.AddCommand(newBpfConfigCmd())
+	bpfCmd.AddCommand(newBpfCtCmd())
+	bpfCmd.AddCommand(newBpfEndpointCommand())
+	bpfCmd.AddCommand(newBpfIPCacheCommand())
+	bpfCmd.AddCommand(newBpfLBCommand())
+	bpfCmd.AddCommand(newBpfMetricsCommand())
+	bpfCmd.AddCommand(newBpfPolicyCommand())
+	bpfCmd.AddCommand(newBpfProxyCommand())
+	bpfCmd.AddCommand(newBpfTunnelCommand())
+	return bpfCmd
 }

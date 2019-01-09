@@ -44,151 +44,150 @@ var src, dst, dports []string
 var srcIdentity, dstIdentity int64
 var srcEndpoint, dstEndpoint, srcK8sPod, dstK8sPod, srcK8sYaml, dstK8sYaml string
 
-// policyTraceCmd represents the policy_trace command
-var policyTraceCmd = &cobra.Command{
-	Use:   "trace ( -s <label context> | --src-identity <security identity> | --src-endpoint <endpoint ID> | --src-k8s-pod <namespace:pod-name> | --src-k8s-yaml <path to YAML file> ) ( -d <label context> | --dst-identity <security identity> | --dst-endpoint <endpoint ID> | --dst-k8s-pod <namespace:pod-name> | --dst-k8s-yaml <path to YAML file>) [--dport <port>[/<protocol>]",
-	Short: "Trace a policy decision",
-	Long: `Verifies if the source is allowed to consume
+// newPolicyTraceCommand returns the policy_trace command.
+func newPolicyTraceCommand() *cobra.Command {
+	policyTraceCmd := &cobra.Command{
+		Use:   "trace ( -s <label context> | --src-identity <security identity> | --src-endpoint <endpoint ID> | --src-k8s-pod <namespace:pod-name> | --src-k8s-yaml <path to YAML file> ) ( -d <label context> | --dst-identity <security identity> | --dst-endpoint <endpoint ID> | --dst-k8s-pod <namespace:pod-name> | --dst-k8s-yaml <path to YAML file>) [--dport <port>[/<protocol>]",
+		Short: "Trace a policy decision",
+		Long: `Verifies if the source is allowed to consume
 destination. Source / destination can be provided as endpoint ID, security ID, Kubernetes Pod, YAML file, set of LABELs. LABEL is represented as
 SOURCE:KEY[=VALUE].
 dports can be can be for example: 80/tcp, 53 or 23/udp.
 If multiple sources and / or destinations are provided, each source is tested whether there is a policy allowing traffic between it and each destination`,
-	Run: func(cmd *cobra.Command, args []string) {
+		Run: func(cmd *cobra.Command, args []string) {
 
-		srcSlices := [][]string{}
-		dstSlices := [][]string{}
-		var srcSlice, dstSlice []string
-		var dPorts []*models.Port
-		var err error
+			srcSlices := [][]string{}
+			dstSlices := [][]string{}
+			var srcSlice, dstSlice []string
+			var dPorts []*models.Port
+			var err error
 
-		if len(src) == 0 && srcIdentity == defaultSecurityID && srcEndpoint == "" && srcK8sPod == "" && srcK8sYaml == "" {
-			Usagef(cmd, "Missing source argument")
-		}
-
-		if len(dst) == 0 && dstIdentity == defaultSecurityID && dstEndpoint == "" && dstK8sPod == "" && dstK8sYaml == "" {
-			Usagef(cmd, "Missing destination argument")
-		}
-
-		// Parse provided labels
-		if len(src) > 0 {
-			srcSlice, err = parseLabels(src)
-			if err != nil {
-				Fatalf("Invalid source: %s", err)
+			if len(src) == 0 && srcIdentity == defaultSecurityID && srcEndpoint == "" && srcK8sPod == "" && srcK8sYaml == "" {
+				Usagef(cmd, "Missing source argument")
 			}
 
-			srcSlices = append(srcSlices, srcSlice)
-		}
-
-		if len(dst) > 0 {
-			dstSlice, err = parseLabels(dst)
-			if err != nil {
-				Fatalf("Invalid destination: %s", err)
+			if len(dst) == 0 && dstIdentity == defaultSecurityID && dstEndpoint == "" && dstK8sPod == "" && dstK8sYaml == "" {
+				Usagef(cmd, "Missing destination argument")
 			}
 
-			dstSlices = append(dstSlices, dstSlice)
-		}
-
-		if len(dports) > 0 {
-			dPorts, err = parseL4PortsSlice(dports)
-			if err != nil {
-				Fatalf("Invalid destination port: %s", err)
-			}
-		}
-
-		// Parse security identities.
-		if srcIdentity != defaultSecurityID {
-			srcSlice = appendIdentityLabelsToSlice(srcSlice, identity.NumericIdentity(srcIdentity).StringID())
-			srcSlices = append(srcSlices, srcSlice)
-		}
-
-		if dstIdentity != defaultSecurityID {
-			dstSlice = appendIdentityLabelsToSlice(dstSlice, identity.NumericIdentity(dstIdentity).StringID())
-			dstSlices = append(dstSlices, dstSlice)
-		}
-
-		// Parse endpoint IDs.
-		if srcEndpoint != "" {
-			srcSlice = appendEpLabelsToSlice(srcSlice, srcEndpoint)
-			srcSlices = append(srcSlices, srcSlice)
-		}
-
-		if dstEndpoint != "" {
-			dstSlice = appendEpLabelsToSlice(dstSlice, dstEndpoint)
-			dstSlices = append(dstSlices, dstSlice)
-		}
-
-		// Parse pod names.
-		if srcK8sPod != "" {
-			id, err := getSecIDFromK8s(srcK8sPod)
-			if err != nil {
-				Fatalf("Cannot get security id from k8s pod name: %s", err)
-			}
-			srcSlice = appendIdentityLabelsToSlice(srcSlice, id)
-			srcSlices = append(srcSlices, srcSlice)
-		}
-
-		if dstK8sPod != "" {
-			id, err := getSecIDFromK8s(dstK8sPod)
-			if err != nil {
-				Fatalf("Cannot get security id from k8s pod name: %s", err)
-			}
-			dstSlice = appendIdentityLabelsToSlice(dstSlice, id)
-			dstSlices = append(dstSlices, dstSlice)
-		}
-
-		// Parse provided YAML files.
-		if srcK8sYaml != "" {
-			srcYamlSlices, err := trace.GetLabelsFromYaml(srcK8sYaml)
-			if err != nil {
-				Fatalf("%s", err)
-			}
-			for _, v := range srcYamlSlices {
-				srcSlices = append(srcSlices, v)
-			}
-		}
-
-		if dstK8sYaml != "" {
-			dstYamlSlices, err := trace.GetLabelsFromYaml(dstK8sYaml)
-			if err != nil {
-				Fatalf("%s", err)
-			}
-			for _, v := range dstYamlSlices {
-				dstSlices = append(dstSlices, v)
-			}
-		}
-
-		for _, v := range srcSlices {
-			for _, w := range dstSlices {
-				search := models.TraceSelector{
-					From: &models.TraceFrom{
-						Labels: v,
-					},
-					To: &models.TraceTo{
-						Labels: w,
-						Dports: dPorts,
-					},
-					Verbose: verbose,
+			// Parse provided labels
+			if len(src) > 0 {
+				srcSlice, err = parseLabels(src)
+				if err != nil {
+					Fatalf("Invalid source: %s", err)
 				}
 
-				params := NewGetPolicyResolveParams().WithTraceSelector(&search).WithTimeout(api.ClientTimeout)
-				if scr, err := client.Policy.GetPolicyResolve(params); err != nil {
-					Fatalf("Error while retrieving policy assessment result: %s\n", err)
-				} else if command.OutputJSON() {
-					if err := command.PrintOutput(scr); err != nil {
-						os.Exit(1)
+				srcSlices = append(srcSlices, srcSlice)
+			}
+
+			if len(dst) > 0 {
+				dstSlice, err = parseLabels(dst)
+				if err != nil {
+					Fatalf("Invalid destination: %s", err)
+				}
+
+				dstSlices = append(dstSlices, dstSlice)
+			}
+
+			if len(dports) > 0 {
+				dPorts, err = parseL4PortsSlice(dports)
+				if err != nil {
+					Fatalf("Invalid destination port: %s", err)
+				}
+			}
+
+			// Parse security identities.
+			if srcIdentity != defaultSecurityID {
+				srcSlice = appendIdentityLabelsToSlice(srcSlice, identity.NumericIdentity(srcIdentity).StringID())
+				srcSlices = append(srcSlices, srcSlice)
+			}
+
+			if dstIdentity != defaultSecurityID {
+				dstSlice = appendIdentityLabelsToSlice(dstSlice, identity.NumericIdentity(dstIdentity).StringID())
+				dstSlices = append(dstSlices, dstSlice)
+			}
+
+			// Parse endpoint IDs.
+			if srcEndpoint != "" {
+				srcSlice = appendEpLabelsToSlice(srcSlice, srcEndpoint)
+				srcSlices = append(srcSlices, srcSlice)
+			}
+
+			if dstEndpoint != "" {
+				dstSlice = appendEpLabelsToSlice(dstSlice, dstEndpoint)
+				dstSlices = append(dstSlices, dstSlice)
+			}
+
+			// Parse pod names.
+			if srcK8sPod != "" {
+				id, err := getSecIDFromK8s(srcK8sPod)
+				if err != nil {
+					Fatalf("Cannot get security id from k8s pod name: %s", err)
+				}
+				srcSlice = appendIdentityLabelsToSlice(srcSlice, id)
+				srcSlices = append(srcSlices, srcSlice)
+			}
+
+			if dstK8sPod != "" {
+				id, err := getSecIDFromK8s(dstK8sPod)
+				if err != nil {
+					Fatalf("Cannot get security id from k8s pod name: %s", err)
+				}
+				dstSlice = appendIdentityLabelsToSlice(dstSlice, id)
+				dstSlices = append(dstSlices, dstSlice)
+			}
+
+			// Parse provided YAML files.
+			if srcK8sYaml != "" {
+				srcYamlSlices, err := trace.GetLabelsFromYaml(srcK8sYaml)
+				if err != nil {
+					Fatalf("%s", err)
+				}
+				for _, v := range srcYamlSlices {
+					srcSlices = append(srcSlices, v)
+				}
+			}
+
+			if dstK8sYaml != "" {
+				dstYamlSlices, err := trace.GetLabelsFromYaml(dstK8sYaml)
+				if err != nil {
+					Fatalf("%s", err)
+				}
+				for _, v := range dstYamlSlices {
+					dstSlices = append(dstSlices, v)
+				}
+			}
+
+			for _, v := range srcSlices {
+				for _, w := range dstSlices {
+					search := models.TraceSelector{
+						From: &models.TraceFrom{
+							Labels: v,
+						},
+						To: &models.TraceTo{
+							Labels: w,
+							Dports: dPorts,
+						},
+						Verbose: verbose,
 					}
-				} else if scr != nil && scr.Payload != nil {
-					fmt.Println("----------------------------------------------------------------")
-					fmt.Printf("%s\n", scr.Payload.Log)
-					fmt.Printf("Final verdict: %s\n", strings.ToUpper(scr.Payload.Verdict))
+
+					params := NewGetPolicyResolveParams().WithTraceSelector(&search).WithTimeout(api.ClientTimeout)
+					if scr, err := client.Policy.GetPolicyResolve(params); err != nil {
+						Fatalf("Error while retrieving policy assessment result: %s\n", err)
+					} else if command.OutputJSON() {
+						if err := command.PrintOutput(scr); err != nil {
+							os.Exit(1)
+						}
+					} else if scr != nil && scr.Payload != nil {
+						fmt.Println("----------------------------------------------------------------")
+						fmt.Printf("%s\n", scr.Payload.Log)
+						fmt.Printf("Final verdict: %s\n", strings.ToUpper(scr.Payload.Verdict))
+					}
 				}
 			}
-		}
-	},
-}
+		},
+	}
 
-func init() {
-	policyCmd.AddCommand(policyTraceCmd)
 	policyTraceCmd.Flags().StringSliceVarP(&src, "src", "s", []string{}, "Source label context")
 	policyTraceCmd.Flags().StringSliceVarP(&dst, "dst", "d", []string{}, "Destination label context")
 	policyTraceCmd.Flags().StringSliceVarP(&dports, "dport", "", []string{}, "L4 destination port to search on outgoing traffic of the source label context and on incoming traffic of the destination label context")
@@ -202,6 +201,9 @@ func init() {
 	policyTraceCmd.Flags().StringVarP(&srcK8sYaml, "src-k8s-yaml", "", "", "Path to YAML file for source")
 	policyTraceCmd.Flags().StringVarP(&dstK8sYaml, "dst-k8s-yaml", "", "", "Path to YAML file for destination")
 	command.AddJSONOutput(policyTraceCmd)
+
+	return policyTraceCmd
+
 }
 
 func appendIdentityLabelsToSlice(labelSlice []string, secID string) []string {

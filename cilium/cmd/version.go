@@ -26,17 +26,16 @@ import (
 
 const notResponding = "Not responding"
 
-var versionCmd = &cobra.Command{
-	Use:   "version",
-	Short: "Print version information",
-	Run: func(cmd *cobra.Command, args []string) {
-		getVersion(cmd, args)
-	},
-}
-
-func init() {
-	rootCmd.AddCommand(versionCmd)
+func newVersionCommand() *cobra.Command {
+	versionCmd := &cobra.Command{
+		Use:   "version",
+		Short: "Print version information",
+		Run: func(cmd *cobra.Command, args []string) {
+			getVersion(cmd, args)
+		},
+	}
 	command.AddJSONOutput(versionCmd)
+	return versionCmd
 }
 
 func getVersion(cmd *cobra.Command, args []string) {

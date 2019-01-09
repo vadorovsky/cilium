@@ -20,17 +20,15 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// bpfPolicyAddCmd represents the bpf_policy_add command
-var bpfPolicyAddCmd = &cobra.Command{
-	Use:    "add <endpoint id> <traffic-direction> <identity> [port/proto]",
-	Short:  "Add/update policy entry",
-	PreRun: requireEndpointID,
-	Run: func(cmd *cobra.Command, args []string) {
-		common.RequireRootPrivilege("cilium bpf policy add")
-		updatePolicyKey(parsePolicyUpdateArgs(cmd, args), true)
-	},
-}
-
-func init() {
-	bpfPolicyCmd.AddCommand(bpfPolicyAddCmd)
+// newBpfPolicyAddCommand returns the bpf_policy_add command.
+func newBpfPolicyAddCommand() *cobra.Command {
+	return &cobra.Command{
+		Use:    "add <endpoint id> <traffic-direction> <identity> [port/proto]",
+		Short:  "Add/update policy entry",
+		PreRun: requireEndpointID,
+		Run: func(cmd *cobra.Command, args []string) {
+			common.RequireRootPrivilege("cilium bpf policy add")
+			updatePolicyKey(parsePolicyUpdateArgs(cmd, args), true)
+		},
+	}
 }

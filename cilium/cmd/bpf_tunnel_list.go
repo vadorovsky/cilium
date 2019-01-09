@@ -28,30 +28,29 @@ const (
 	tunnelTitle = "TUNNEL"
 )
 
-var bpfTunnelListCmd = &cobra.Command{
-	Use:     "list",
-	Aliases: []string{"ls"},
-	Short:   "List tunnel endpoint entries",
-	Run: func(cmd *cobra.Command, args []string) {
-		common.RequireRootPrivilege("cilium bpf tunnel list")
+func newBpfTunnelListCommand() *cobra.Command {
+	bpfTunnelListCmd := &cobra.Command{
+		Use:     "list",
+		Aliases: []string{"ls"},
+		Short:   "List tunnel endpoint entries",
+		Run: func(cmd *cobra.Command, args []string) {
+			common.RequireRootPrivilege("cilium bpf tunnel list")
 
-		tunnelList := make(map[string][]string)
-		if err := tunnel.TunnelMap.Dump(tunnelList); err != nil {
-			os.Exit(1)
-		}
-
-		if command.OutputJSON() {
-			if err := command.PrintOutput(tunnelList); err != nil {
+			tunnelList := make(map[string][]string)
+			if err := tunnel.TunnelMap.Dump(tunnelList); err != nil {
 				os.Exit(1)
 			}
-			return
-		}
 
-		TablePrinter(tunnelTitle, destinationTitle, tunnelList)
-	},
-}
+			if command.OutputJSON() {
+				if err := command.PrintOutput(tunnelList); err != nil {
+					os.Exit(1)
+				}
+				return
+			}
 
-func init() {
-	bpfTunnelCmd.AddCommand(bpfTunnelListCmd)
+			TablePrinter(tunnelTitle, destinationTitle, tunnelList)
+		},
+	}
 	command.AddJSONOutput(bpfTunnelListCmd)
+	return bpfTunnelListCmd
 }

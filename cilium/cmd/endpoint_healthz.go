@@ -24,20 +24,19 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// endpointHealthCmd represents the endpoint_healthz command
-var endpointHealthCmd = &cobra.Command{
-	Use:     "health <endpoint id>",
-	Short:   "View endpoint health",
-	Example: "cilium endpoint health 5421",
-	Run: func(cmd *cobra.Command, args []string) {
-		requireEndpointID(cmd, args)
-		getEndpointHealth(cmd, args)
-	},
-}
-
-func init() {
-	endpointCmd.AddCommand(endpointHealthCmd)
+// newEndpointHealthCommand returns the endpoint_healthz command.
+func newEndpointHealthCommand() *cobra.Command {
+	endpointHealthCmd := &cobra.Command{
+		Use:     "health <endpoint id>",
+		Short:   "View endpoint health",
+		Example: "cilium endpoint health 5421",
+		Run: func(cmd *cobra.Command, args []string) {
+			requireEndpointID(cmd, args)
+			getEndpointHealth(cmd, args)
+		},
+	}
 	command.AddJSONOutput(endpointHealthCmd)
+	return endpointHealthCmd
 }
 
 func getEndpointHealth(cmd *cobra.Command, args []string) {

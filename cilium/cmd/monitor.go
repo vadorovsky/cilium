@@ -37,9 +37,11 @@ const (
 	connTimeout = 12 * time.Second
 )
 
-// monitorCmd represents the monitor command
-var (
-	monitorCmd = &cobra.Command{
+var printer = format.NewMonitorFormatter(format.INFO)
+
+// newMonitorCommand returns the monitor command.
+func newMonitorCommand() *cobra.Command {
+	monitorCmd := &cobra.Command{
 		Use:   "monitor",
 		Short: "Display BPF program events",
 		Long: `The monitor displays notifications and events emitted by the BPF
@@ -51,11 +53,6 @@ programs attached to endpoints and devices. This includes:
 			runMonitor(args)
 		},
 	}
-	printer = format.NewMonitorFormatter(format.INFO)
-)
-
-func init() {
-	rootCmd.AddCommand(monitorCmd)
 	monitorCmd.Flags().BoolVar(&printer.Hex, "hex", false, "Do not dissect, print payload in HEX")
 	monitorCmd.Flags().VarP(&printer.EventTypes, "type", "t", fmt.Sprintf("Filter by event types %v", monitor.GetAllTypes()))
 	monitorCmd.Flags().Var(&printer.FromSource, "from", "Filter by source endpoint id")
@@ -63,6 +60,7 @@ func init() {
 	monitorCmd.Flags().Var(&printer.Related, "related-to", "Filter by either source or destination endpoint id")
 	monitorCmd.Flags().BoolVarP(&printer.Verbose, "verbose", "v", false, "Enable verbose output")
 	monitorCmd.Flags().BoolVarP(&printer.JSONOutput, "json", "j", false, "Enable json output. Shadows -v flag")
+	return monitorCmd
 }
 
 func setVerbosity() {

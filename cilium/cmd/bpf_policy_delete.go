@@ -20,17 +20,15 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// bpfPolicyDeleteCmd represents the bpf_policy_delete command
-var bpfPolicyDeleteCmd = &cobra.Command{
-	Use:    "delete <endpoint id> <identity> [port/proto]",
-	Short:  "Delete a policy entry",
-	PreRun: requireEndpointID,
-	Run: func(cmd *cobra.Command, args []string) {
-		common.RequireRootPrivilege("cilium bpf policy delete")
-		updatePolicyKey(parsePolicyUpdateArgs(cmd, args), false)
-	},
-}
-
-func init() {
-	bpfPolicyCmd.AddCommand(bpfPolicyDeleteCmd)
+// newBpfPolicyDeleteCommand returns the bpf_policy_delete command.
+func newBpfPolicyDeleteCommand() *cobra.Command {
+	return &cobra.Command{
+		Use:    "delete <endpoint id> <identity> [port/proto]",
+		Short:  "Delete a policy entry",
+		PreRun: requireEndpointID,
+		Run: func(cmd *cobra.Command, args []string) {
+			common.RequireRootPrivilege("cilium bpf policy delete")
+			updatePolicyKey(parsePolicyUpdateArgs(cmd, args), false)
+		},
+	}
 }

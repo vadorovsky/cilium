@@ -18,12 +18,12 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// metricsCmd represents the metrics command.
-var metricsCmd = &cobra.Command{
-	Use:   "metrics",
-	Short: "Access metric status",
-}
-
-func init() {
-	rootCmd.AddCommand(metricsCmd)
+// newMetricsCommand returns the metrics command.
+func newMetricsCommand() *cobra.Command {
+	metricsCmd := &cobra.Command{
+		Use:   "metrics",
+		Short: "Access metric status",
+	}
+	metricsCmd.AddCommand(newMetricsListCommand())
+	return metricsCmd
 }

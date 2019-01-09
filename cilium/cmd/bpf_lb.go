@@ -18,12 +18,12 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// bpfCtCmd represents the bpf_ct command
-var bpfLBCmd = &cobra.Command{
-	Use:   "lb",
-	Short: "Load-balancing configuration",
-}
-
-func init() {
-	bpfCmd.AddCommand(bpfLBCmd)
+// newBpfLBCommand returns the bpf_lb command.
+func newBpfLBCommand() *cobra.Command {
+	bpfLBCmd := &cobra.Command{
+		Use:   "lb",
+		Short: "Load-balancing configuration",
+	}
+	bpfLBCmd.AddCommand(newBpfLBListCommand())
+	return bpfLBCmd
 }

@@ -38,28 +38,32 @@ const (
 	bytesTitle     = "BYTES"
 )
 
-var bpfMetricsListCmd = &cobra.Command{
-	Use:   "list",
-	Short: "List BPF datapath traffic metrics",
-	Run: func(cmd *cobra.Command, args []string) {
-		common.RequireRootPrivilege("cilium bpf metrics list")
+func newBpfMetricsListCommand() *cobra.Command {
+	bpfMetricsListCmd := &cobra.Command{
+		Use:   "list",
+		Short: "List BPF datapath traffic metrics",
+		Run: func(cmd *cobra.Command, args []string) {
+			common.RequireRootPrivilege("cilium bpf metrics list")
 
-		bpfMetricsList := make(map[string][]string)
-		if err := metricsmap.Metrics.Dump(bpfMetricsList); err != nil {
-			fmt.Fprintf(os.Stderr, "error dumping contents of map: %s\n", err)
-			os.Exit(1)
-		}
-
-		if command.OutputJSON() {
-			if err := command.PrintOutput(bpfMetricsList); err != nil {
-				fmt.Fprintf(os.Stderr, "error getting output of map in JSON: %s\n", err)
+			bpfMetricsList := make(map[string][]string)
+			if err := metricsmap.Metrics.Dump(bpfMetricsList); err != nil {
+				fmt.Fprintf(os.Stderr, "error dumping contents of map: %s\n", err)
 				os.Exit(1)
 			}
-			return
-		}
 
-		listMetrics(bpfMetricsList)
-	},
+			if command.OutputJSON() {
+				if err := command.PrintOutput(bpfMetricsList); err != nil {
+					fmt.Fprintf(os.Stderr, "error getting output of map in JSON: %s\n", err)
+					os.Exit(1)
+				}
+				return
+			}
+
+			listMetrics(bpfMetricsList)
+		},
+	}
+	command.AddJSONOutput(bpfMetricsListCmd)
+	return bpfMetricsListCmd
 }
 
 func listMetrics(bpfMetricsList map[string][]string) {
@@ -147,9 +151,4 @@ func extractTwoValues(str string) (string, string, bool) {
 	}
 
 	return a[1], b[1], true
-}
-
-func init() {
-	bpfMetricsCmd.AddCommand(bpfMetricsListCmd)
-	command.AddJSONOutput(bpfMetricsListCmd)
 }

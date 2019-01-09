@@ -24,20 +24,19 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// endpointLogCmd represents the endpoint_log command
-var endpointLogCmd = &cobra.Command{
-	Use:     "log <endpoint id>",
-	Short:   "View endpoint status log",
-	Example: "cilium endpoint log 5421",
-	Run: func(cmd *cobra.Command, args []string) {
-		requireEndpointID(cmd, args)
-		getEndpointLog(cmd, args)
-	},
-}
-
-func init() {
-	endpointCmd.AddCommand(endpointLogCmd)
+// newEndpointLogCommand returns the endpoint_log command.
+func newEndpointLogCommand() *cobra.Command {
+	endpointLogCmd := &cobra.Command{
+		Use:     "log <endpoint id>",
+		Short:   "View endpoint status log",
+		Example: "cilium endpoint log 5421",
+		Run: func(cmd *cobra.Command, args []string) {
+			requireEndpointID(cmd, args)
+			getEndpointLog(cmd, args)
+		},
+	}
 	command.AddJSONOutput(endpointLogCmd)
+	return endpointLogCmd
 }
 
 func getEndpointLog(cmd *cobra.Command, args []string) {

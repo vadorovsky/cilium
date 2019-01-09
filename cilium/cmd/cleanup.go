@@ -31,14 +31,18 @@ import (
 	"github.com/vishvananda/netlink"
 )
 
-// configCmd represents the config command
-var cleanupCmd = &cobra.Command{
-	Use:   "cleanup",
-	Short: "Reset the agent state",
-	Run: func(cmd *cobra.Command, args []string) {
-		common.RequireRootPrivilege("cleanup")
-		runCleanup()
-	},
+// newCleanupCommand returns the cleanup command.
+func newCleanupCommand() *cobra.Command {
+	cleanupCmd := &cobra.Command{
+		Use:   "cleanup",
+		Short: "Reset the agent state",
+		Run: func(cmd *cobra.Command, args []string) {
+			common.RequireRootPrivilege("cleanup")
+			runCleanup()
+		},
+	}
+	cleanupCmd.Flags().BoolVarP(&force, "force", "f", false, "Skip confirmation")
+	return cleanupCmd
 }
 
 var force bool
@@ -51,11 +55,6 @@ const (
 	cniConfigV2      = "/etc/cni/net.d/00-cilium-cni.conf"
 	cniConfigV3      = "/etc/cni/net.d/05-cilium-cni.conf"
 )
-
-func init() {
-	rootCmd.AddCommand(cleanupCmd)
-	cleanupCmd.Flags().BoolVarP(&force, "force", "f", false, "Skip confirmation")
-}
 
 func runCleanup() {
 	// Abort if the agent is running, err == nil is handled correctly by Stat.

@@ -18,12 +18,12 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// nodeCmd represents the node command
-var nodeCmd = &cobra.Command{
-	Use:   "node",
-	Short: "Manage cluster nodes",
-}
-
-func init() {
-	rootCmd.AddCommand(nodeCmd)
+// newNodeCommand returns the node command.
+func newNodeCommand() *cobra.Command {
+	nodeCmd := &cobra.Command{
+		Use:   "node",
+		Short: "Manage cluster nodes",
+	}
+	nodeCmd.AddCommand(newNodeListCommand())
+	return nodeCmd
 }

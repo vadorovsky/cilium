@@ -21,36 +21,34 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// policyValidateCmd represents the policy_validate command
-var policyValidateCmd = &cobra.Command{
-	Use:    "validate <path>",
-	Short:  "Validate a policy",
-	PreRun: requirePath,
-	Run: func(cmd *cobra.Command, args []string) {
-		path := args[0]
-		if ruleList, err := loadPolicy(path); err != nil {
-			Fatalf("Validation of policy has failed: %s\n", err)
-		} else {
-			for _, r := range ruleList {
-				if err := r.Sanitize(); err != nil {
-					Fatalf("Validation of policy has failed: %s\n", err)
+// newPolicyValidateCommand returns the policy_validate command.
+func newPolicyValidateCommand() *cobra.Command {
+	policyValidateCmd := &cobra.Command{
+		Use:    "validate <path>",
+		Short:  "Validate a policy",
+		PreRun: requirePath,
+		Run: func(cmd *cobra.Command, args []string) {
+			path := args[0]
+			if ruleList, err := loadPolicy(path); err != nil {
+				Fatalf("Validation of policy has failed: %s\n", err)
+			} else {
+				for _, r := range ruleList {
+					if err := r.Sanitize(); err != nil {
+						Fatalf("Validation of policy has failed: %s\n", err)
+					}
+				}
+				fmt.Printf("All policy elements are valid.\n")
+
+				if printPolicy {
+					jsonPolicy, err := json.MarshalIndent(ruleList, "", "  ")
+					if err != nil {
+						Fatalf("Cannot marshal policy: %s\n", err)
+					}
+					fmt.Printf("%s", string(jsonPolicy))
 				}
 			}
-			fmt.Printf("All policy elements are valid.\n")
-
-			if printPolicy {
-				jsonPolicy, err := json.MarshalIndent(ruleList, "", "  ")
-				if err != nil {
-					Fatalf("Cannot marshal policy: %s\n", err)
-				}
-				fmt.Printf("%s", string(jsonPolicy))
-			}
-		}
-	},
-}
-
-func init() {
-	policyCmd.AddCommand(policyValidateCmd)
+		},
+	}
 	policyValidateCmd.Flags().BoolVarP(&printPolicy, "print", "", false, "Print policy after validation")
-
+	return policyValidateCmd
 }

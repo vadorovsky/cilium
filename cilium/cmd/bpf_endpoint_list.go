@@ -29,30 +29,29 @@ const (
 	localEndpointInfoTitle = "LOCAL ENDPOINT INFO"
 )
 
-var bpfEndpointListCmd = &cobra.Command{
-	Use:     "list",
-	Aliases: []string{"ls"},
-	Short:   "List local endpoint entries",
-	Run: func(cmd *cobra.Command, args []string) {
-		common.RequireRootPrivilege("cilium bpf endpoint list")
+func newBpfEndpointListCommand() *cobra.Command {
+	bpfEndpointListCmd := &cobra.Command{
+		Use:     "list",
+		Aliases: []string{"ls"},
+		Short:   "List local endpoint entries",
+		Run: func(cmd *cobra.Command, args []string) {
+			common.RequireRootPrivilege("cilium bpf endpoint list")
 
-		bpfEndpointList := make(map[string][]string)
-		if err := lxcmap.LXCMap.Dump(bpfEndpointList); err != nil {
-			os.Exit(1)
-		}
-
-		if command.OutputJSON() {
-			if err := command.PrintOutput(bpfEndpointList); err != nil {
+			bpfEndpointList := make(map[string][]string)
+			if err := lxcmap.LXCMap.Dump(bpfEndpointList); err != nil {
 				os.Exit(1)
 			}
-			return
-		}
 
-		TablePrinter(ipAddressTitle, localEndpointInfoTitle, bpfEndpointList)
-	},
-}
+			if command.OutputJSON() {
+				if err := command.PrintOutput(bpfEndpointList); err != nil {
+					os.Exit(1)
+				}
+				return
+			}
 
-func init() {
-	bpfEndpointCmd.AddCommand(bpfEndpointListCmd)
+			TablePrinter(ipAddressTitle, localEndpointInfoTitle, bpfEndpointList)
+		},
+	}
 	command.AddJSONOutput(bpfEndpointListCmd)
+	return bpfEndpointListCmd
 }

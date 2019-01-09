@@ -29,27 +29,26 @@ import (
 
 var numPages int
 
-// configCmd represents the config command
-var configCmd = &cobra.Command{
-	Use:   "config [<option>=(enable|disable) ...]",
-	Short: "Cilium configuration options",
-	Run: func(cmd *cobra.Command, args []string) {
-		if listOptions {
-			for k, s := range option.DaemonMutableOptionLibrary {
-				fmt.Printf("%-24s %s\n", k, s.Description)
+// newConfigCommand returns the config command.
+func newConfigCommand() *cobra.Command {
+	configCmd := &cobra.Command{
+		Use:   "config [<option>=(enable|disable) ...]",
+		Short: "Cilium configuration options",
+		Run: func(cmd *cobra.Command, args []string) {
+			if listOptions {
+				for k, s := range option.DaemonMutableOptionLibrary {
+					fmt.Printf("%-24s %s\n", k, s.Description)
+				}
+				return
 			}
-			return
-		}
 
-		configDaemon(cmd, args)
-	},
-}
-
-func init() {
-	rootCmd.AddCommand(configCmd)
+			configDaemon(cmd, args)
+		},
+	}
 	configCmd.Flags().BoolVarP(&listOptions, "list-options", "", false, "List available options")
 	configCmd.Flags().IntVarP(&numPages, "num-pages", "n", 0, "Number of pages for perf ring buffer. New values have to be > 0")
 	command.AddJSONOutput(configCmd)
+	return configCmd
 }
 
 func configDaemon(cmd *cobra.Command, opts []string) {

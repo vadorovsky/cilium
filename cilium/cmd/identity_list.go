@@ -26,19 +26,18 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// identityListCmd represents the identity_list command
-var identityListCmd = &cobra.Command{
-	Use:     "list [LABELS]",
-	Aliases: []string{"ls"},
-	Short:   "List identities",
-	Run: func(cmd *cobra.Command, args []string) {
-		listIdentities(args)
-	},
-}
-
-func init() {
-	identityCmd.AddCommand(identityListCmd)
+// newIdentityListCommand returns the identity_list command.
+func newIdentityListCommand() *cobra.Command {
+	identityListCmd := &cobra.Command{
+		Use:     "list [LABELS]",
+		Aliases: []string{"ls"},
+		Short:   "List identities",
+		Run: func(cmd *cobra.Command, args []string) {
+			listIdentities(args)
+		},
+	}
 	command.AddJSONOutput(identityListCmd)
+	return identityListCmd
 }
 
 func listIdentities(args []string) {

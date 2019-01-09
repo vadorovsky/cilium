@@ -29,50 +29,48 @@ import (
 
 const usage = "IP address must be in dotted decimal (192.168.1.1) or IPv6 (feab::f02b) form"
 
-var bpfIPCacheGetCmd = &cobra.Command{
-	Use:   "get",
-	Short: "Retrieve identity for an ip",
-	Run: func(cmd *cobra.Command, args []string) {
-		common.RequireRootPrivilege("cilium bpf ipcache get")
+func newBpfIPCacheGetCommand() *cobra.Command {
+	return &cobra.Command{
+		Use:   "get",
+		Short: "Retrieve identity for an ip",
+		Run: func(cmd *cobra.Command, args []string) {
+			common.RequireRootPrivilege("cilium bpf ipcache get")
 
-		if len(args) < 1 || args[0] == "" {
-			Usagef(cmd, "No ip provided. "+usage)
-		}
+			if len(args) < 1 || args[0] == "" {
+				Usagef(cmd, "No ip provided. "+usage)
+			}
 
-		arg := args[0]
+			arg := args[0]
 
-		ip := net.ParseIP(arg)
-		if ip == nil {
-			Usagef(cmd, "Invalid ip address. "+usage)
-		}
+			ip := net.ParseIP(arg)
+			if ip == nil {
+				Usagef(cmd, "Invalid ip address. "+usage)
+			}
 
-		bpfIPCache := dumpIPCache()
+			bpfIPCache := dumpIPCache()
 
-		if len(bpfIPCache) == 0 {
-			fmt.Fprintf(os.Stderr, "No entries found.\n")
-			os.Exit(1)
-		}
+			if len(bpfIPCache) == 0 {
+				fmt.Fprintf(os.Stderr, "No entries found.\n")
+				os.Exit(1)
+			}
 
-		value, exists := getLPMValue(ip, bpfIPCache)
+			value, exists := getLPMValue(ip, bpfIPCache)
 
-		if !exists {
-			fmt.Printf("%s does not map to any identity\n", arg)
-			os.Exit(1)
-		}
+			if !exists {
+				fmt.Printf("%s does not map to any identity\n", arg)
+				os.Exit(1)
+			}
 
-		v := value.([]string)
-		if len(v) == 0 {
-			fmt.Printf("Unable to retrieve identity for LPM entry %s\n", arg)
-			os.Exit(1)
-		}
+			v := value.([]string)
+			if len(v) == 0 {
+				fmt.Printf("Unable to retrieve identity for LPM entry %s\n", arg)
+				os.Exit(1)
+			}
 
-		ids := strings.Join(v, ",")
-		fmt.Printf("%s maps to identity %s\n", arg, ids)
-	},
-}
-
-func init() {
-	bpfIPCacheCmd.AddCommand(bpfIPCacheGetCmd)
+			ids := strings.Join(v, ",")
+			fmt.Printf("%s maps to identity %s\n", arg, ids)
+		},
+	}
 }
 
 func dumpIPCache() map[string][]string {

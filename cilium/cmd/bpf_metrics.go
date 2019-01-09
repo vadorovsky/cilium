@@ -18,12 +18,12 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// bpfMetricsCmd represents the bpf_metrics command
-var bpfMetricsCmd = &cobra.Command{
-	Use:   "metrics",
-	Short: "BPF datapath traffic metrics",
-}
-
-func init() {
-	bpfCmd.AddCommand(bpfMetricsCmd)
+// newBpfMetricsCommand returns the bpf_metrics command.
+func newBpfMetricsCommand() *cobra.Command {
+	bpfMetricsCmd := &cobra.Command{
+		Use:   "metrics",
+		Short: "BPF datapath traffic metrics",
+	}
+	bpfMetricsCmd.AddCommand(newBpfMetricsListCommand())
+	return bpfMetricsCmd
 }

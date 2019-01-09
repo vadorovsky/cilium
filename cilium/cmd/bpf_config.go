@@ -18,12 +18,12 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// bpfConfigCmd represents the bpf_config command
-var bpfConfigCmd = &cobra.Command{
-	Use:   "config",
-	Short: "Manage endpoint configuration BPF maps",
-}
-
-func init() {
-	bpfCmd.AddCommand(bpfConfigCmd)
+// newBpfConfigCmd returns the bpf_config command.
+func newBpfConfigCmd() *cobra.Command {
+	bpfConfigCmd := &cobra.Command{
+		Use:   "config",
+		Short: "Manage endpoint configuration BPF maps",
+	}
+	bpfConfigCmd.AddCommand(newBpfConfigGetCommand())
+	return bpfConfigCmd
 }

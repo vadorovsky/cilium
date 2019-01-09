@@ -18,11 +18,12 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var bpfEndpointCmd = &cobra.Command{
-	Use:   "endpoint",
-	Short: "Local endpoint map",
-}
-
-func init() {
-	bpfCmd.AddCommand(bpfEndpointCmd)
+func newBpfEndpointCommand() *cobra.Command {
+	bpfEndpointCmd := &cobra.Command{
+		Use:   "endpoint",
+		Short: "Local endpoint map",
+	}
+	bpfEndpointCmd.AddCommand(newBpfEndpointDeleteCmd())
+	bpfEndpointCmd.AddCommand(newBpfEndpointListCommand())
+	return bpfEndpointCmd
 }

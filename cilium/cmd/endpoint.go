@@ -18,12 +18,19 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// endpointCmd represents the endpoint command
-var endpointCmd = &cobra.Command{
-	Use:   "endpoint",
-	Short: "Manage endpoints",
-}
-
-func init() {
-	rootCmd.AddCommand(endpointCmd)
+// newEndpointCommand returns the endpoint command.
+func newEndpointCommand() *cobra.Command {
+	endpointCmd := &cobra.Command{
+		Use:   "endpoint",
+		Short: "Manage endpoints",
+	}
+	endpointCmd.AddCommand(newEndpointConfigCommand())
+	endpointCmd.AddCommand(newEndpointDisconnectCommand())
+	endpointCmd.AddCommand(newEndpointGetCommand())
+	endpointCmd.AddCommand(newEndpointHealthCommand())
+	endpointCmd.AddCommand(newEndpointLabelsCommand())
+	endpointCmd.AddCommand(newEndpointListCommand())
+	endpointCmd.AddCommand(newEndpointLogCommand())
+	endpointCmd.AddCommand(newEndpointRegenerateCommand())
+	return endpointCmd
 }

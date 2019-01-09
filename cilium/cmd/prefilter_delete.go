@@ -23,18 +23,17 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var preFilterDeleteCmd = &cobra.Command{
-	Use:   "delete",
-	Short: "Delete CIDR filters",
-	Run: func(cmd *cobra.Command, args []string) {
-		deleteFilters(cmd, args)
-	},
-}
-
-func init() {
-	preFilterCmd.AddCommand(preFilterDeleteCmd)
+func newPreFilterDeleteCommand() *cobra.Command {
+	preFilterDeleteCmd := &cobra.Command{
+		Use:   "delete",
+		Short: "Delete CIDR filters",
+		Run: func(cmd *cobra.Command, args []string) {
+			deleteFilters(cmd, args)
+		},
+	}
 	preFilterDeleteCmd.Flags().Uint64VarP(&revision, "revision", "", 0, "Update revision")
 	preFilterDeleteCmd.Flags().StringSliceVarP(&cidrs, "cidr", "", []string{}, "List of CIDR prefixes to delete")
+	return preFilterDeleteCmd
 }
 
 func deleteFilters(cmd *cobra.Command, args []string) {

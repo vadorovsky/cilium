@@ -23,18 +23,16 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// bpfProxyFlushCmd represents the bpf_proxy_flush command
-var bpfProxyFlushCmd = &cobra.Command{
-	Use:    "flush",
-	Short:  "Flush all proxy entries",
-	PreRun: requireEndpointIDorGlobal,
-	Run: func(cmd *cobra.Command, args []string) {
-		common.RequireRootPrivilege("cilium bpf proxy flush")
-		entries := proxymap.Flush()
-		fmt.Printf("Flushed %d entries\n", entries)
-	},
-}
-
-func init() {
-	bpfProxyCmd.AddCommand(bpfProxyFlushCmd)
+// newBpfProxyFlushCommand returns the bpf_proxy_flush command.
+func newBpfProxyFlushCommand() *cobra.Command {
+	return &cobra.Command{
+		Use:    "flush",
+		Short:  "Flush all proxy entries",
+		PreRun: requireEndpointIDorGlobal,
+		Run: func(cmd *cobra.Command, args []string) {
+			common.RequireRootPrivilege("cilium bpf proxy flush")
+			entries := proxymap.Flush()
+			fmt.Printf("Flushed %d entries\n", entries)
+		},
+	}
 }

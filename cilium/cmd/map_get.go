@@ -27,36 +27,40 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// mapGetCmd represents the map_get command
-var mapGetCmd = &cobra.Command{
-	Use:     "get <name>",
-	Short:   "Display BPF map information",
-	Example: "cilium map get cilium_ipcache",
-	Run: func(cmd *cobra.Command, args []string) {
-		if len(args) == 0 {
-			Fatalf("map name must be specified")
-		}
-
-		params := daemonAPI.NewGetMapNameParams().WithName(args[0]).WithTimeout(api.ClientTimeout)
-
-		resp, err := client.Daemon.GetMapName(params)
-		if err != nil {
-			Fatalf("%s", err)
-		}
-
-		m := resp.Payload
-		if m == nil {
-			return
-		}
-
-		if command.OutputJSON() {
-			if err := command.PrintOutput(m); err != nil {
-				os.Exit(1)
+// newMapGetCommand returns the map_get command.
+func newMapGetCommand() *cobra.Command {
+	mapGetCmd := &cobra.Command{
+		Use:     "get <name>",
+		Short:   "Display BPF map information",
+		Example: "cilium map get cilium_ipcache",
+		Run: func(cmd *cobra.Command, args []string) {
+			if len(args) == 0 {
+				Fatalf("map name must be specified")
 			}
-		} else {
-			printMapEntries(m)
-		}
-	},
+
+			params := daemonAPI.NewGetMapNameParams().WithName(args[0]).WithTimeout(api.ClientTimeout)
+
+			resp, err := client.Daemon.GetMapName(params)
+			if err != nil {
+				Fatalf("%s", err)
+			}
+
+			m := resp.Payload
+			if m == nil {
+				return
+			}
+
+			if command.OutputJSON() {
+				if err := command.PrintOutput(m); err != nil {
+					os.Exit(1)
+				}
+			} else {
+				printMapEntries(m)
+			}
+		},
+	}
+	command.AddJSONOutput(mapGetCmd)
+	return mapGetCmd
 }
 
 func printMapEntries(m *models.BPFMap) {
@@ -79,9 +83,4 @@ func printMapEntries(m *models.BPFMap) {
 		}
 	}
 	w.Flush()
-}
-
-func init() {
-	mapCmd.AddCommand(mapGetCmd)
-	command.AddJSONOutput(mapGetCmd)
 }

@@ -28,37 +28,36 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var nodeListCmd = &cobra.Command{
-	Use:     "list",
-	Aliases: []string{"ls"},
-	Short:   "List nodes",
-	Run: func(cmd *cobra.Command, args []string) {
-		resp, err := client.Daemon.GetHealthz(nil)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "%s\n", pkg.Hint(err))
-			os.Exit(1)
-		}
-
-		cluster := resp.Payload.Cluster
-		if cluster == nil {
-			return
-		}
-
-		if command.OutputJSON() {
-			if err := command.PrintOutput(cluster); err != nil {
+func newNodeListCommand() *cobra.Command {
+	nodeListCmd := &cobra.Command{
+		Use:     "list",
+		Aliases: []string{"ls"},
+		Short:   "List nodes",
+		Run: func(cmd *cobra.Command, args []string) {
+			resp, err := client.Daemon.GetHealthz(nil)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "%s\n", pkg.Hint(err))
 				os.Exit(1)
 			}
-		} else {
-			w := tabwriter.NewWriter(os.Stdout, 2, 0, 3, ' ', 0)
-			formatStatusResponse(w, cluster)
-			w.Flush()
-		}
-	},
-}
 
-func init() {
-	nodeCmd.AddCommand(nodeListCmd)
+			cluster := resp.Payload.Cluster
+			if cluster == nil {
+				return
+			}
+
+			if command.OutputJSON() {
+				if err := command.PrintOutput(cluster); err != nil {
+					os.Exit(1)
+				}
+			} else {
+				w := tabwriter.NewWriter(os.Stdout, 2, 0, 3, ' ', 0)
+				formatStatusResponse(w, cluster)
+				w.Flush()
+			}
+		},
+	}
 	command.AddJSONOutput(nodeListCmd)
+	return nodeListCmd
 }
 
 func formatStatusResponse(w io.Writer, cluster *models.ClusterStatus) {

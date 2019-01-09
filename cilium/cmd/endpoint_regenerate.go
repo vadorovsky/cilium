@@ -20,21 +20,19 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// endpointRegenerateCmd represents the endpoint_regenerate command
-var endpointRegenerateCmd = &cobra.Command{
-	Use:    "regenerate <endpoint-id>",
-	Short:  "Force regeneration of endpoint program",
-	PreRun: requireEndpointID,
-	Run: func(cmd *cobra.Command, args []string) {
-		id := args[0]
-		if err := client.EndpointConfigPatch(id, nil); err != nil {
-			Fatalf("Cannot regenerate endpoint %s: %s\n", id, err)
-		} else {
-			fmt.Printf("Endpoint %s successfully regenerated\n", id)
-		}
-	},
-}
-
-func init() {
-	endpointCmd.AddCommand(endpointRegenerateCmd)
+// newEndpointRegenerateCommand returns the endpoint_regenerate command.
+func newEndpointRegenerateCommand() *cobra.Command {
+	return &cobra.Command{
+		Use:    "regenerate <endpoint-id>",
+		Short:  "Force regeneration of endpoint program",
+		PreRun: requireEndpointID,
+		Run: func(cmd *cobra.Command, args []string) {
+			id := args[0]
+			if err := client.EndpointConfigPatch(id, nil); err != nil {
+				Fatalf("Cannot regenerate endpoint %s: %s\n", id, err)
+			} else {
+				fmt.Printf("Endpoint %s successfully regenerated\n", id)
+			}
+		},
+	}
 }

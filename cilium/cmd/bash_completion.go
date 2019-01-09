@@ -21,18 +21,16 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// bashCompletionCmd represents the bash_completion command
-var bashCompletionCmd = &cobra.Command{
-	Use:    "generate-bash-completion",
-	Short:  "Hidden bash completion command",
-	Hidden: true,
-	Run: func(cmd *cobra.Command, args []string) {
-		out := new(bytes.Buffer)
-		rootCmd.GenBashCompletion(out)
-		fmt.Println(out.String())
-	},
-}
-
-func init() {
-	rootCmd.AddCommand(bashCompletionCmd)
+// newBashCompletionCommand returns the bash_completion command.
+func newBashCompletionCommand(rootCmd *cobra.Command) *cobra.Command {
+	return &cobra.Command{
+		Use:    "generate-bash-completion",
+		Short:  "Hidden bash completion command",
+		Hidden: true,
+		Run: func(cmd *cobra.Command, args []string) {
+			out := new(bytes.Buffer)
+			rootCmd.GenBashCompletion(out)
+			fmt.Println(out.String())
+		},
+	}
 }

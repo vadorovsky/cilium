@@ -32,10 +32,19 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// policyCmd represents the policy command
-var policyCmd = &cobra.Command{
-	Use:   "policy",
-	Short: "Manage security policies",
+// newPolicyCommand returns the policy command.
+func newPolicyCommand() *cobra.Command {
+	policyCmd := &cobra.Command{
+		Use:   "policy",
+		Short: "Manage security policies",
+	}
+	policyCmd.AddCommand(newPolicyDeleteCommand())
+	policyCmd.AddCommand(newPolicyGetCommand())
+	policyCmd.AddCommand(newPolicyImportCommand())
+	policyCmd.AddCommand(newPolicyTraceCommand())
+	policyCmd.AddCommand(newPolicyValidateCommand())
+	policyCmd.AddCommand(newPolicyWaitCommand())
+	return policyCmd
 }
 
 var (
@@ -49,8 +58,6 @@ func init() {
 	for i := range ignoredMasksSource {
 		ignoredMasks[i] = regexp.MustCompile(ignoredMasksSource[i])
 	}
-
-	rootCmd.AddCommand(policyCmd)
 }
 
 func getContext(content []byte, offset int64) (int, string, int) {

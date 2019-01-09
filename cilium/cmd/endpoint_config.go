@@ -28,26 +28,25 @@ import (
 
 var listOptions bool
 
-// endpointConfigCmd represents the endpoint_config command
-var endpointConfigCmd = &cobra.Command{
-	Use:     "config <endpoint id> [<option>=(enable|disable) ...]",
-	Short:   "View & modify endpoint configuration",
-	Example: "endpoint config 5421 DropNotification=false TraceNotification=false",
-	Run: func(cmd *cobra.Command, args []string) {
-		if listOptions {
-			listEndpointOptions()
-			return
-		}
+// newEndpointConfigCommand returns the endpoint_config command.
+func newEndpointConfigCommand() *cobra.Command {
+	endpointConfigCmd := &cobra.Command{
+		Use:     "config <endpoint id> [<option>=(enable|disable) ...]",
+		Short:   "View & modify endpoint configuration",
+		Example: "endpoint config 5421 DropNotification=false TraceNotification=false",
+		Run: func(cmd *cobra.Command, args []string) {
+			if listOptions {
+				listEndpointOptions()
+				return
+			}
 
-		requireEndpointID(cmd, args)
-		configEndpoint(cmd, args)
-	},
-}
-
-func init() {
-	endpointCmd.AddCommand(endpointConfigCmd)
+			requireEndpointID(cmd, args)
+			configEndpoint(cmd, args)
+		},
+	}
 	endpointConfigCmd.Flags().BoolVarP(&listOptions, "list-options", "", false, "List available options")
 	command.AddJSONOutput(endpointConfigCmd)
+	return endpointConfigCmd
 }
 
 func listEndpointOptions() {

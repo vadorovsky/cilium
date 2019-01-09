@@ -18,12 +18,15 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// serviceCmd represents the service command
-var serviceCmd = &cobra.Command{
-	Use:   "service",
-	Short: "Manage services & loadbalancers",
-}
-
-func init() {
-	rootCmd.AddCommand(serviceCmd)
+// newServiceCommand returns the service command.
+func newServiceCommand() *cobra.Command {
+	serviceCmd := &cobra.Command{
+		Use:   "service",
+		Short: "Manage services & loadbalancers",
+	}
+	serviceCmd.AddCommand(newServiceDeleteCommand())
+	serviceCmd.AddCommand(newServiceGetCommand())
+	serviceCmd.AddCommand(newServiceListCommand())
+	serviceCmd.AddCommand(newServiceUpdateCommand())
+	return serviceCmd
 }

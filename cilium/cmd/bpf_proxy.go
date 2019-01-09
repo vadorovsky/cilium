@@ -18,12 +18,13 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// bpfProxyCmd represents the bpf_proxy command
-var bpfProxyCmd = &cobra.Command{
-	Use:   "proxy",
-	Short: "Proxy configuration",
-}
-
-func init() {
-	bpfCmd.AddCommand(bpfProxyCmd)
+// newBpfProxyCommand represents the bpf_proxy command.
+func newBpfProxyCommand() *cobra.Command {
+	bpfProxyCmd := &cobra.Command{
+		Use:   "proxy",
+		Short: "Proxy configuration",
+	}
+	bpfProxyCmd.AddCommand(newBpfProxyFlushCommand())
+	bpfProxyCmd.AddCommand(newBpfProxyListCommand())
+	return bpfProxyCmd
 }
