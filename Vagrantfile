@@ -214,8 +214,13 @@ Vagrant.configure(2) do |config|
                    type: "shell",
                    run: "always",
                    env: {"node_ip" => node_ip},
-                   privileged: true,
+                   privileged: false,
                    path: k8sinstall
+               cm.vm.provision "openstack-install",
+                   type: "shell",
+                   run: "always",
+                   privileged: true,
+                   path: "contrib/kuryr/setup.sh"
            end
         end
         if ENV['RUN_TEST_SUITE'] then
