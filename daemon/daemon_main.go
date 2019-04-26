@@ -60,6 +60,7 @@ import (
 	"github.com/cilium/cilium/pkg/pidfile"
 	"github.com/cilium/cilium/pkg/policy"
 	"github.com/cilium/cilium/pkg/pprof"
+	"github.com/cilium/cilium/pkg/probes"
 	"github.com/cilium/cilium/pkg/service"
 	"github.com/cilium/cilium/pkg/sockops"
 	"github.com/cilium/cilium/pkg/version"
@@ -293,6 +294,9 @@ func checkMinRequirements() {
 	probeScript := filepath.Join(option.Config.BpfDir, "run_probes.sh")
 	if err := exec.Command(probeScript, option.Config.BpfDir, option.Config.StateDir).Run(); err != nil {
 		log.WithError(err).Fatal("BPF Verifier: NOT OK. Unable to run checker for bpf_features")
+	}
+	if err := probes.Perf(); err != nil {
+		log.WithError(err).Fatal("BPF Verifier: NOT OK. Unable to run checker for perf ring buffer")
 	}
 	featuresFilePath := filepath.Join(globalsDir, "bpf_features.h")
 	if _, err := os.Stat(featuresFilePath); os.IsNotExist(err) {
