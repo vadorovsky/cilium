@@ -201,6 +201,16 @@ cilium-pre-flight.yaml.sed:
 	    sed s+__CILIUM_ETCD_OPERATOR_VERSION__+$(CILIUM_ETCD_OPERATOR_VERSION)+g | \
 		sed /__CILIUM_RM_SVC_V2__/d > "cilium-pre-flight.yaml") \
 	done
+	for k8s_version in $(K8S_VERSIONS); do \
+	    (mkdir -p $$k8s_version && \
+	    cd $$k8s_version && \
+	    sed -f transforms2sed.sed ../templates/v1/$@ | \
+	    sed s+__CILIUM_VERSION__+$(CILIUM_VERSION)+g | \
+	    sed s+__CILIUM_INIT_VERSION__+$(CILIUM_INIT_VERSION)+g | \
+	    sed s+__CILIUM_ETCD_OPERATOR_VERSION__+$(CILIUM_ETCD_OPERATOR_VERSION)+g | \
+	    sed s+"namespace: kube-system"+"namespace: cilium"+g | \
+	    sed /__CILIUM_RM_SVC_V2__/d > "cilium-pre-flight-gke.yaml") \
+	done
 
 cilium-pre-flight-with-rm-svc-v2.yaml:
 	for k8s_version in $(K8S_VERSIONS); do \
