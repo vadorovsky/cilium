@@ -28,6 +28,7 @@ type CiliumTestConfigType struct {
 	TestScope        string
 	SkipLogGathering bool
 	Timeout          time.Duration
+	Kubeconfig       string
 }
 
 // CiliumTestConfig holds the global configuration of commandline flags
@@ -50,4 +51,6 @@ func (c *CiliumTestConfigType) ParseFlags() {
 		"Specifies scope of test to be ran (k8s, Nightly, runtime)")
 	flag.DurationVar(&c.Timeout, "cilium.timeout", 24*time.Hour,
 		"Specifies timeout for test run")
+	flag.StringVar(&c.Kubeconfig, "cilium.kubeconfig", "",
+		"Kubeconfig to be used for k8s tests")
 }
