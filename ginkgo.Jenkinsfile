@@ -115,13 +115,16 @@ pipeline {
                         GOPATH="${WORKSPACE}/${TESTED_SUITE}-gopath"
                         TESTDIR="${GOPATH}/${PROJ_PATH}/test"
                         NETNEXT="true"
+                        K8S_VERSION="1.10"
+                        KUBECONFIG="vagrant-kubeconfig"
                     }
                     steps {
                         sh 'mkdir -p ${GOPATH}/src/github.com/cilium'
                         sh 'cp -a ${WORKSPACE}/${PROJ_PATH} ${GOPATH}/${PROJ_PATH}'
                         retry(3) {
-                            sh 'cd ${TESTDIR}; K8S_VERSION=1.10 vagrant destroy k8s1-1.10 k8s2-1.10 --force'
-                            sh 'cd ${TESTDIR}; K8S_VERSION=1.10 vagrant up k8s1-1.10 k8s2-1.10 --provision'
+                            dir("${TESTDIR}") {
+                                sh './vagrant-ci-start.sh'
+                            }
                         }
                     }
                     post {
@@ -139,13 +142,16 @@ pipeline {
                         TESTED_SUITE="k8s-1.16"
                         GOPATH="${WORKSPACE}/${TESTED_SUITE}-gopath"
                         TESTDIR="${GOPATH}/${PROJ_PATH}/test"
+                        K8S_VERSION="1.16"
+                        KUBECONFIG="vagrant-kubeconfig"
                     }
                     steps {
                         sh 'mkdir -p ${GOPATH}/src/github.com/cilium'
                         sh 'cp -a ${WORKSPACE}/${PROJ_PATH} ${GOPATH}/${PROJ_PATH}'
                         retry(3) {
-                            sh 'cd ${TESTDIR}; K8S_VERSION=1.16 vagrant destroy k8s1-1.16 k8s2-1.16 --force'
-                            sh 'cd ${TESTDIR}; K8S_VERSION=1.16 vagrant up k8s1-1.16 k8s2-1.16 --provision'
+                            dir("${TESTDIR}") {
+                                sh './vagrant-ci-start.sh'
+                            }
                         }
                     }
                     post {
@@ -203,7 +209,7 @@ pipeline {
                         NETNEXT="true"
                     }
                     steps {
-                        sh 'cd ${TESTDIR}; K8S_VERSION=1.10 ginkgo --focus=" K8s*" -v --failFast=${FAILFAST} -- -cilium.provision=false -cilium.timeout=${GINKGO_TIMEOUT}'
+                        sh 'cd ${TESTDIR}; K8S_VERSION=1.10 ginkgo --focus=" K8s*" -v --failFast=${FAILFAST} -- -cilium.provision=false -cilium.timeout=${GINKGO_TIMEOUT} -cilium.kubeconfig=${TESTDIR}/vagrant-kubeconfig'
                     }
                     post {
                         always {
@@ -229,7 +235,7 @@ pipeline {
                         TESTDIR="${GOPATH}/${PROJ_PATH}/test"
                     }
                     steps {
-                        sh 'cd ${TESTDIR}; K8S_VERSION=1.16 ginkgo --focus=" K8s*" -v --failFast=${FAILFAST} -- -cilium.provision=false -cilium.timeout=${GINKGO_TIMEOUT}'
+                        sh 'cd ${TESTDIR}; K8S_VERSION=1.16 ginkgo --focus=" K8s*" -v --failFast=${FAILFAST} -- -cilium.provision=false -cilium.timeout=${GINKGO_TIMEOUT} -cilium.kubeconfig=${TESTDIR}/vagrant-kubeconfig'
                     }
                     post {
                         always {
