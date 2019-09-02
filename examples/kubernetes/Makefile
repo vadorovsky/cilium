@@ -137,7 +137,7 @@ cilium-external-etcd.yaml:
             rm -f ./$@ && \
             for f in $(CILIUM_EXTERNAL_ETCD); do (cat "$${f}") >> $@; done; \
 	sed -i 's+https://cilium-etcd-client.kube-system.svc:2379+http://EDIT-ME-ETCD-ADDRESS:2379+' cilium-external-etcd.yaml; \
-	sed -i "s+ca-file: '/var/lib/etcd-secrets/etcd-client-ca.crt'+# ca-file: '/var/lib/etcd-secrets/etcd-client-ca.crt'+" cilium-external-etcd.yaml; \
+	sed -i "s+trusted-ca-file: '/var/lib/etcd-secrets/etcd-client-ca.crt'+# trusted-ca-file: '/var/lib/etcd-secrets/etcd-client-ca.crt'+" cilium-external-etcd.yaml; \
 	sed -i "s+key-file: '/var/lib/etcd-secrets/etcd-client.key'+# key-file: '/var/lib/etcd-secrets/etcd-client.key'+" cilium-external-etcd.yaml; \
 	sed -i "s+cert-file: '/var/lib/etcd-secrets/etcd-client.crt'+# cert-file: '/var/lib/etcd-secrets/etcd-client.crt'+" cilium-external-etcd.yaml); \
 	done
@@ -163,7 +163,7 @@ cilium-microk8s.yaml:
             rm -f ./$@ && \
             for f in $(CILIUM_MICROK8S); do (cat "$${f}") >> $@; done; \
             sed -i 's+https://cilium-etcd-client.kube-system.svc:2379+http://127.0.0.1:31079+' cilium-microk8s.yaml; \
-            sed -i 's+ca-file:+# ca-file:+' cilium-microk8s.yaml; \
+            sed -i 's+trusted-ca-file:+# trusted-ca-file:+' cilium-microk8s.yaml; \
             sed -i 's+key-file:+# key-file:+' cilium-microk8s.yaml; \
             sed -i 's+cert-file:+# cert-file:+' cilium-microk8s.yaml; \
             sed -i 's+path: /var/run/containerd+path: /var/snap/microk8s/common/run+'  cilium-microk8s.yaml; \
@@ -180,7 +180,7 @@ cilium-minikube.yaml:
             for f in $(CILIUM_MINIKUBE); do (cat "$${f}") >> $@; done; \
             if [[ "$$k8s_version" == "1.8" || "$$k8s_version" == "1.9" ]]; then \
             sed -i 's+https://cilium-etcd-client.kube-system.svc:2379+http://127.0.0.1:2379+' cilium-minikube.yaml; \
-            sed -i 's+ca-file:+# ca-file:+' cilium-minikube.yaml; \
+            sed -i 's+trusted-ca-file:+# trusted-ca-file:+' cilium-minikube.yaml; \
             sed -i 's+key-file:+# key-file:+' cilium-minikube.yaml; \
             sed -i 's+cert-file:+# cert-file:+' cilium-minikube.yaml; \
             else \
