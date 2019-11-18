@@ -55,6 +55,10 @@ type FQDNSelector struct {
 	//   sub.cilium.io and subdomain.cilium.io match, www.cilium.io,
 	//   blog.cilium.io, cilium.io and google.com do not
 	MatchPattern string `json:"matchPattern,omitempty"`
+
+	// ExceptNames is a list of DNS names which the endpoint subject to the rule
+	// is not allowed to initiate connections to.
+	ExceptNames []string `json"except,omitempty"`
 }
 
 func (s *FQDNSelector) String() string {
