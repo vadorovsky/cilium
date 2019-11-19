@@ -119,7 +119,7 @@ func (n *NameManager) RegisterForIdentityUpdates(selector api.FQDNSelector) []id
 	}
 
 	n.allSelectors[selector] = regex
-	_, selectorIPMapping := mapSelectorsToIPs(map[api.FQDNSelector]struct{}{selector: {}}, n.cache)
+	_, selectorIPMapping := mapSelectorsToIPs(selector, n.cache)
 	n.Mutex.Unlock()
 
 	// Allocate identities for each IPNet and then map to selector
@@ -310,14 +310,14 @@ func (n *NameManager) GenerateSelectorUpdates(fqdnSelectors map[api.FQDNSelector
 // newIPs.
 // updated is true when the new IPs differ from the old IPs
 func (n *NameManager) updateIPsForName(lookupTime time.Time, dnsName string, newIPs []net.IP, ttl int) (updated bool) {
-	cacheIPs := n.cache.Lookup(dnsName)
+	cacheIPs := n.cache.Lookup(dnsName, nil)
 
 	if n.config.MinTTL > ttl {
 		ttl = n.config.MinTTL
 	}
 
 	n.cache.Update(lookupTime, dnsName, newIPs, ttl)
-	sortedNewIPs := n.cache.Lookup(dnsName) // DNSCache returns IPs sorted
+	sortedNewIPs := n.cache.Lookup(dnsName, nil) // DNSCache returns IPs sorted
 
 	// The 0 checks below account for an unlike race condition where this
 	// function is called with already expired data and if other cache data

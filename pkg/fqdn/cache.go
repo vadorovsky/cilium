@@ -393,18 +393,19 @@ func (c *DNSCache) ReplaceFromCacheByNames(namesToUpdate []string, updates ...*D
 // Lookup returns a set of unique IPs that are currently unexpired for name, if
 // any exist. An empty list indicates no valid records exist. The IPs are
 // returned sorted.
-func (c *DNSCache) Lookup(name string) (ips []net.IP) {
+func (c *DNSCache) Lookup(name string, exceptNames map[string]struct{}) (ips []net.IP) {
 	c.RLock()
 	defer c.RUnlock()
 
-	return c.lookupByTime(c.lastCleanup, name)
+	return c.lookupByTime(c.lastCleanup, name, exceptNames)
 }
 
 // lookupByTime takes a timestamp for expiration comparisons, and is only
 // intended for testing.
-func (c *DNSCache) lookupByTime(now time.Time, name string) (ips []net.IP) {
+func (c *DNSCache) lookupByTime(now time.Time, name string, exceptNames map[string]struct{}) (ips []net.IP) {
 	entries, found := c.forward[name]
-	if !found {
+	_, foundAsExc := exceptNames[name]
+	if !found || foundAsExc {
 		return nil
 	}
 
@@ -413,20 +414,21 @@ func (c *DNSCache) lookupByTime(now time.Time, name string) (ips []net.IP) {
 
 // LookupByRegexp returns all non-expired cache entries that match re as a map
 // of name -> IPs
-func (c *DNSCache) LookupByRegexp(re *regexp.Regexp) (matches map[string][]net.IP) {
-	return c.lookupByRegexpByTime(c.lastCleanup, re)
+func (c *DNSCache) LookupByRegexp(re *regexp.Regexp, exceptNames map[string]struct{}) (matches map[string][]net.IP) {
+	return c.lookupByRegexpByTime(c.lastCleanup, re, exceptNames)
 }
 
 // lookupByRegexpByTime takes a timestamp for expiration comparisons, and is
 // only intended for testing.
-func (c *DNSCache) lookupByRegexpByTime(now time.Time, re *regexp.Regexp) (matches map[string][]net.IP) {
+func (c *DNSCache) lookupByRegexpByTime(now time.Time, re *regexp.Regexp, exceptNames map[string]struct{}) (matches map[string][]net.IP) {
 	matches = make(map[string][]net.IP)
 
 	c.RLock()
 	defer c.RUnlock()
 
 	for name, entry := range c.forward {
-		if re.MatchString(name) {
+		_, foundAsExc := exceptNames[name]
+		if re.MatchString(name) && !foundAsExc {
 			if ips := entry.getIPs(now); len(ips) > 0 {
 				matches[name] = append(matches[name], ips...)
 			}
