@@ -25,6 +25,7 @@ import (
 
 	"github.com/cilium/cilium/api/v1/models"
 	"github.com/cilium/cilium/common/addressing"
+	"github.com/cilium/cilium/pkg/annotation"
 	"github.com/cilium/cilium/pkg/client"
 	"github.com/cilium/cilium/pkg/datapath/linux/route"
 	"github.com/cilium/cilium/pkg/defaults"
@@ -197,6 +198,10 @@ func configureIface(ipam *models.IPAMResponse, ifName string, state *CmdState) (
 		if err := addIPConfigToLink(state.IP6, state.IP6routes, l, ifName); err != nil {
 			return "", fmt.Errorf("error configuring IPv6: %s", err.Error())
 		}
+	}
+
+	if err := netlink.LinkSetHardwareAddr(l, ); err != nil {
+		return "", fmt.Errorf("error setting MAC address: %v", err)
 	}
 
 	if err := netlink.LinkSetUp(l); err != nil {

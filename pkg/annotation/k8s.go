@@ -65,4 +65,8 @@ const (
 	// pod is redirected to the proxy for the given port / protocol in the
 	// annotation
 	ProxyVisibility = Prefix + ".proxy-visibility"
+
+	// CustomMAC if defined, sets up the custom MAC address to the pod
+	// network interface.
+	CustomMAC = Prefix + "/custom-mac"
 )
