@@ -136,12 +136,12 @@ spec:
           postStart:
             exec:
               command:
-              - "/cni-install.sh"
+              - {{ .Values.cniInstallScript }}
               -{{- if .Values.global.debug.enabled }} "--enable-debug=true"{{- else }} "--enable-debug=false"{{- end }}
           preStop:
             exec:
               command:
-              - /cni-uninstall.sh
+              - {{ .Values.cniUninstallScript }}
 {{- end }}
         name: cilium-agent
 {{- if .Values.global.prometheus.enabled }}
@@ -244,7 +244,7 @@ spec:
           name: cilium-bootstrap-file
 {{- end }}
       - command:
-        - /init-container.sh
+        - {{ .Values.initScript }}
         env:
         - name: CILIUM_ALL_STATE
           valueFrom:
