@@ -1,4 +1,8 @@
+cniInstallScript: /cni-install.sh
+cniUninstallScript: /cni-uninstall.sh
 image: cilium
+initImage: cilium
+initScript: /init-container.sh
 
 # Specifies the maximum number of Pods that can be unavailable during the
 # update process.
