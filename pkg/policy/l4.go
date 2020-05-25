@@ -35,7 +35,7 @@ import (
 	"github.com/cilium/cilium/pkg/policy/api"
 	"github.com/cilium/cilium/pkg/policy/trafficdirection"
 	"github.com/cilium/cilium/pkg/u8proto"
-	"github.com/cilium/proxy/go/cilium/api"
+	cilium "github.com/cilium/proxy/go/cilium/api"
 
 	"github.com/sirupsen/logrus"
 )
@@ -173,6 +173,8 @@ const (
 	ParserTypeKafka L7ParserType = "kafka"
 	// ParserTypeDNS specifies a DNS parser type
 	ParserTypeDNS L7ParserType = "dns"
+	// ParserTypeMySQL specifies a MySQL parser type
+	ParserTypeMySQL L7ParserType = "mysql"
 )
 
 // L4Filter represents the policy (allowed remote sources / destinations of

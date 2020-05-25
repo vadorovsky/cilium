@@ -385,7 +385,8 @@ func (s *XDSServer) AddListener(name string, kind policy.L7ParserType, port uint
 	}
 
 	// Add filter chains
-	if kind == policy.ParserTypeHTTP {
+	switch kind {
+	case policy.ParserTypeHTTP:
 		listenerConf.FilterChains = append(listenerConf.FilterChains, s.getHttpFilterChainProto(clusterName, false))
 
 		// Add a TLS variant
@@ -394,7 +395,7 @@ func (s *XDSServer) AddListener(name string, kind policy.L7ParserType, port uint
 			tlsClusterName = ingressTLSClusterName
 		}
 		listenerConf.FilterChains = append(listenerConf.FilterChains, s.getHttpFilterChainProto(tlsClusterName, true))
-	} else {
+	default:
 		listenerConf.FilterChains = append(listenerConf.FilterChains, s.getTcpFilterChainProto(clusterName))
 	}
 
