@@ -67,14 +67,16 @@ func (d *Daemon) validateEndpoint(ep *endpoint.Endpoint) (valid bool, err error)
 	}
 
 	if ep.K8sPodName != "" && ep.K8sNamespace != "" && k8s.IsEnabled() {
+		_, err = d.k8sWatcher.GetCachedPod(ep.K8sNamespace, ep.K8sPodName)
+		podNotFound := k8serrors.IsNotFound(err)
+
 		go func() {
 			err := ep.WaitUntilExposed(context.Background())
 			if err != nil {
 				// If an error has happen it's because the endpoint is not alive
 				return
 			}
-			_, err = d.k8sWatcher.GetCachedPod(ep.K8sNamespace, ep.K8sPodName)
-			if err != nil && k8serrors.IsNotFound(err) {
+			if podNotFound {
 				scopedLog := log.WithFields(logrus.Fields{
 					logfields.EndpointID:   ep.ID,
 					logfields.K8sNamespace: ep.K8sNamespace,
@@ -93,6 +95,10 @@ func (d *Daemon) validateEndpoint(ep *endpoint.Endpoint) (valid bool, err error)
 
 			ep.RunMetadataResolver(d.fetchK8sLabelsAndAnnotations)
 		}()
+
+		if podNotFound {
+			return false, nil
+		}
 	}
 
 	if err := ep.ValidateConnectorPlumbing(connector.CheckLink); err != nil {
