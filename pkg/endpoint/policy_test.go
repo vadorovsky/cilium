@@ -19,13 +19,14 @@ package endpoint
 import (
 	"github.com/cilium/cilium/pkg/policy"
 	"github.com/cilium/cilium/pkg/testutils/allocator"
+	testEndpoint "github.com/cilium/cilium/pkg/testutils/endpoint"
 	"github.com/cilium/cilium/pkg/u8proto"
 
 	"gopkg.in/check.v1"
 )
 
 func (s *EndpointSuite) TestUpdateVisibilityPolicy(c *check.C) {
-	ep := NewEndpointWithState(&DummyOwner{repo: policy.NewPolicyRepository(nil, nil)}, nil, &allocator.FakeIdentityAllocator{}, 12345, StateReady)
+	ep := NewEndpointWithState(&testEndpoint.DummyOwner{Repo: policy.NewPolicyRepository(nil, nil)}, nil, &allocator.FakeIdentityAllocator{}, 12345, StateReady)
 	ep.UpdateVisibilityPolicy(func(_, _ string) (string, error) {
 		return "", nil
 	})

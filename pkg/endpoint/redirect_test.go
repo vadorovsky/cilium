@@ -20,19 +20,17 @@ import (
 	"context"
 
 	"github.com/cilium/cilium/pkg/completion"
-	"github.com/cilium/cilium/pkg/datapath"
 	"github.com/cilium/cilium/pkg/identity"
 	"github.com/cilium/cilium/pkg/identity/cache"
 	"github.com/cilium/cilium/pkg/identity/identitymanager"
 	"github.com/cilium/cilium/pkg/kvstore"
 	"github.com/cilium/cilium/pkg/labels"
-	"github.com/cilium/cilium/pkg/lock"
-	monitorAPI "github.com/cilium/cilium/pkg/monitor/api"
 	fakeConfig "github.com/cilium/cilium/pkg/option/fake"
 	"github.com/cilium/cilium/pkg/policy"
 	"github.com/cilium/cilium/pkg/policy/trafficdirection"
 	"github.com/cilium/cilium/pkg/proxy/logger"
 	"github.com/cilium/cilium/pkg/revert"
+	testEndpoint "github.com/cilium/cilium/pkg/testutils/endpoint"
 	"github.com/cilium/cilium/pkg/u8proto"
 	"gopkg.in/check.v1"
 )
@@ -88,49 +86,6 @@ func (d *DummyIdentityAllocatorOwner) GetNodeSuffix() string {
 	return ""
 }
 
-// DummyOwner implements pkg/endpoint/regeneration/Owner. Used for unit testing.
-type DummyOwner struct {
-	repo *policy.Repository
-}
-
-// GetPolicyRepository returns the policy repository of the owner.
-func (d *DummyOwner) GetPolicyRepository() *policy.Repository {
-	return d.repo
-}
-
-// QueueEndpointBuild does nothing.
-func (d *DummyOwner) QueueEndpointBuild(ctx context.Context, epID uint64) (func(), error) {
-	return nil, nil
-}
-
-// GetCompilationLock does nothing.
-func (d *DummyOwner) GetCompilationLock() *lock.RWMutex {
-	return nil
-}
-
-// GetCIDRPrefixLengths does nothing.
-func (d *DummyOwner) GetCIDRPrefixLengths() (s6, s4 []int) {
-	return nil, nil
-}
-
-// SendNotification does nothing.
-func (d *DummyOwner) SendNotification(typ monitorAPI.AgentNotification, text string) error {
-	return nil
-}
-
-// Datapath returns a nil datapath.
-func (d *DummyOwner) Datapath() datapath.Datapath {
-	return nil
-}
-
-// GetNodeSuffix does nothing.
-func (d *DummyOwner) GetNodeSuffix() string {
-	return ""
-}
-
-// UpdateIdentities does nothing.
-func (d *DummyOwner) UpdateIdentities(added, deleted cache.IdentityCache) {}
-
 func (s *RedirectSuite) TestAddVisibilityRedirects(c *check.C) {
 	// Setup dependencies for endpoint.
 	kvstore.SetupDummy("etcd")
@@ -143,10 +98,10 @@ func (s *RedirectSuite) TestAddVisibilityRedirects(c *check.C) {
 	<-mgr.InitIdentityAllocator(nil, nil)
 	defer mgr.Close()
 
-	do := &DummyOwner{
-		repo: policy.NewPolicyRepository(nil, nil),
+	do := &testEndpoint.DummyOwner{
+		Repo: policy.NewPolicyRepository(nil, nil),
 	}
-	identitymanager.Subscribe(do.repo)
+	identitymanager.Subscribe(do.Repo)
 
 	lblQA := labels.ParseLabel("QA")
 	lblBar := labels.ParseLabel("bar")
