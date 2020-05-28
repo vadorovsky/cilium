@@ -35,6 +35,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/util/connrotation"
@@ -240,6 +241,12 @@ func createDefaultClient() (rest.Interface, func(), error) {
 	k8sWatcherCli.Interface = createK8sWatcherCli
 
 	return createdK8sClient.RESTClient(), closeAllConns, nil
+}
+
+// createFakeClient creates fake Kubernetes clients for unit tests.
+func createFakeClient() {
+	k8sCli.Interface = fake.NewSimpleClientset()
+	k8sWatcherCli.Interface = fake.NewSimpleClientset()
 }
 
 // CiliumClient returns the default Cilium Kubernetes client.

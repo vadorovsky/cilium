@@ -185,6 +185,12 @@ func Init(conf k8sconfig.Configuration) error {
 	return nil
 }
 
+// InitFake initializes the Kubernetes package for unit tests. It creates fake
+// Kubernetes clients.
+func InitFake() {
+	createFakeClient()
+}
+
 // GetNodeSpec retrieves this node spec from kubernetes. This node information
 // can either be derived from a CiliumNode or a Kubernetes node.
 func GetNodeSpec(nodeName string) error {
