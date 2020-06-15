@@ -42,8 +42,11 @@ import (
 	envoy_config_core "github.com/cilium/proxy/go/envoy/config/core/v3"
 	envoy_config_endpoint "github.com/cilium/proxy/go/envoy/config/endpoint/v3"
 	envoy_config_listener "github.com/cilium/proxy/go/envoy/config/listener/v3"
+	envoy_config_rbac "github.com/cilium/proxy/go/envoy/config/rbac/v3"
 	envoy_config_route "github.com/cilium/proxy/go/envoy/config/route/v3"
 	envoy_config_http "github.com/cilium/proxy/go/envoy/extensions/filters/network/http_connection_manager/v3"
+	envoy_extensions_mysql "github.com/cilium/proxy/go/envoy/extensions/filters/network/mysql_proxy/v3"
+	envoy_extensions_rbac "github.com/cilium/proxy/go/envoy/extensions/filters/network/rbac/v3"
 	envoy_config_tcp "github.com/cilium/proxy/go/envoy/extensions/filters/network/tcp_proxy/v3"
 	envoy_type_matcher "github.com/cilium/proxy/go/envoy/type/matcher/v3"
 
@@ -288,13 +291,66 @@ func (s *XDSServer) getHttpFilterChainProto(clusterName string, tls bool) *envoy
 func (s *XDSServer) getTcpFilterChainProto(clusterName string) *envoy_config_listener.FilterChain {
 	return &envoy_config_listener.FilterChain{
 		Filters: []*envoy_config_listener.Filter{{
-			Name: "cilium.network",
+			// 	Name: "cilium.network",
+			// 	ConfigType: &envoy_config_listener.Filter_TypedConfig{
+			// 		TypedConfig: toAny(&cilium.NetworkFilter{
+			// 			Proxylib: "libcilium.so",
+			// 			ProxylibParams: map[string]string{
+			// 				"access-log-path": s.accessLogPath,
+			// 				"xds-path":        s.socketPath,
+			// 			},
+			// 		}),
+			// 	},
+			// }, {
+			Name: "envoy.filters.network.mysql_proxy",
 			ConfigType: &envoy_config_listener.Filter_TypedConfig{
-				TypedConfig: toAny(&cilium.NetworkFilter{
-					Proxylib: "libcilium.so",
-					ProxylibParams: map[string]string{
-						"access-log-path": s.accessLogPath,
-						"xds-path":        s.socketPath,
+				TypedConfig: toAny(&envoy_extensions_mysql.MySQLProxy{
+					StatPrefix: "mysql",
+				}),
+			},
+		}, {
+			Name: "envoy.filters.network.rbac",
+			ConfigType: &envoy_config_listener.Filter_TypedConfig{
+				TypedConfig: toAny(&envoy_extensions_rbac.RBAC{
+					StatPrefix: "mysql_rbac",
+					Rules: &envoy_config_rbac.RBAC{
+						Action: envoy_config_rbac.RBAC_DENY,
+						Policies: map[string]*envoy_config_rbac.Policy{
+							"product-viewer": {
+								Permissions: []*envoy_config_rbac.Permission{
+									{
+										Rule: &envoy_config_rbac.Permission_Metadata{
+											Metadata: &envoy_type_matcher.MetadataMatcher{
+												Filter: "envoy.filters.network.mysql_proxy",
+												Path: []*envoy_type_matcher.MetadataMatcher_PathSegment{
+													{
+														Segment: &envoy_type_matcher.MetadataMatcher_PathSegment_Key{
+															Key: "catalog.productdb",
+														},
+													},
+												},
+												Value: &envoy_type_matcher.ValueMatcher{
+													MatchPattern: &envoy_type_matcher.ValueMatcher_StringMatch{
+														StringMatch: &envoy_type_matcher.StringMatcher{
+															MatchPattern: &envoy_type_matcher.StringMatcher_Exact{
+																Exact: "update",
+															},
+														},
+													},
+												},
+											},
+										},
+									},
+								},
+								Principals: []*envoy_config_rbac.Principal{
+									{
+										Identifier: &envoy_config_rbac.Principal_Any{
+											Any: true,
+										},
+									},
+								},
+							},
+						},
 					},
 				}),
 			},
