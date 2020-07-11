@@ -115,9 +115,12 @@ github.com/cilium/proxy/go/envoy/config/endpoint/v3
 github.com/cilium/proxy/go/envoy/config/listener/v3
 github.com/cilium/proxy/go/envoy/config/metrics/v3
 github.com/cilium/proxy/go/envoy/config/overload/v3
+github.com/cilium/proxy/go/envoy/config/rbac/v3
 github.com/cilium/proxy/go/envoy/config/route/v3
 github.com/cilium/proxy/go/envoy/config/trace/v3
 github.com/cilium/proxy/go/envoy/extensions/filters/network/http_connection_manager/v3
+github.com/cilium/proxy/go/envoy/extensions/filters/network/mysql_proxy/v3
+github.com/cilium/proxy/go/envoy/extensions/filters/network/rbac/v3
 github.com/cilium/proxy/go/envoy/extensions/filters/network/tcp_proxy/v3
 github.com/cilium/proxy/go/envoy/extensions/transport_sockets/tls/v3
 github.com/cilium/proxy/go/envoy/service/discovery/v3
@@ -714,6 +717,7 @@ google.golang.org/appengine/urlfetch
 # google.golang.org/genproto v0.0.0-20190819201941-24fa4b261c55
 ## explicit
 google.golang.org/genproto/googleapis/api/annotations
+google.golang.org/genproto/googleapis/api/expr/v1alpha1
 google.golang.org/genproto/googleapis/rpc/status
 # google.golang.org/grpc v1.26.0
 ## explicit
