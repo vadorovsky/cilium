@@ -436,7 +436,7 @@ func (s *XDSServer) AddListener(name string, kind policy.L7ParserType, port uint
 
 		mongoChain := s.getTcpFilterChainProto(clusterName, false)
 		mongoChain.Filters = append([]*envoy_config_listener.Filter{{
-			Name: "envoy.mongo_proxy",
+			Name: "envoy.filters.network.mongo_proxy",
 			ConfigType: &envoy_config_listener.Filter_TypedConfig{
 				TypedConfig: toAny(&envoy_mongo_proxy.MongoProxy{
 					StatPrefix:          "mongo",
@@ -446,7 +446,7 @@ func (s *XDSServer) AddListener(name string, kind policy.L7ParserType, port uint
 		mongoChain.FilterChainMatch = &envoy_config_listener.FilterChainMatch{
 			// must have transport match, otherwise TLS inspector will be automatically inserted
 			TransportProtocol:    "raw_buffer",
-			ApplicationProtocols: []string{"envoy.mongo_proxy"},
+			ApplicationProtocols: []string{"envoy.filters.network.mongo_proxy"},
 		}
 		listenerConf.FilterChains = append(listenerConf.FilterChains, mongoChain)
 	}
@@ -546,6 +546,7 @@ func getL7Rules(l7Rules []api.PortRuleL7, l7Proto string) *cilium.L7NetworkPolic
 								PresentMatch: true,
 							}}
 					} else {
+						// googleRe2 := &envoy_type_matcher.RegexMatcher_GoogleRe2{GoogleRe2: &envoy_type_matcher.RegexMatcher_GoogleRE2{}}
 						value = &envoy_type_matcher.ValueMatcher{
 							MatchPattern: &envoy_type_matcher.ValueMatcher_ListMatch{
 								ListMatch: &envoy_type_matcher.ListMatcher{
@@ -556,6 +557,12 @@ func getL7Rules(l7Rules []api.PortRuleL7, l7Proto string) *cilium.L7NetworkPolic
 													MatchPattern: &envoy_type_matcher.StringMatcher_Exact{
 														Exact: v,
 													},
+													// MatchPattern: &envoy_type_matcher.StringMatcher_SafeRegex{
+													// 	SafeRegex: &envoy_type_matcher.RegexMatcher{
+													// 		EngineType: googleRe2,
+													// 		Regex:      v,
+													// 	},
+													// },
 													IgnoreCase: false,
 												},
 											},
