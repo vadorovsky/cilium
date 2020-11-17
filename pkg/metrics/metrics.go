@@ -492,6 +492,7 @@ type Configuration struct {
 	FQDNGarbageCollectorCleanedTotalEnabled bool
 	BPFSyscallDurationEnabled               bool
 	BPFMapOps                               bool
+	BPFMapPressure                          bool
 	TriggerPolicyUpdateTotal                bool
 	TriggerPolicyUpdateFolds                bool
 	TriggerPolicyUpdateCallDuration         bool
@@ -553,6 +554,7 @@ func DefaultMetrics() map[string]struct{} {
 		Namespace + "_" + SubsystemKVStore + "_quorum_errors_total":                  {},
 		Namespace + "_fqdn_gc_deletions_total":                                       {},
 		Namespace + "_" + SubsystemBPF + "_map_ops_total":                            {},
+		Namespace + "_" + SubsystemBPF + "_map_pressure":                             {},
 		Namespace + "_" + SubsystemTriggers + "_policy_update_total":                 {},
 		Namespace + "_" + SubsystemTriggers + "_policy_update_folds":                 {},
 		Namespace + "_" + SubsystemTriggers + "_policy_update_call_duration_seconds": {},
@@ -1114,6 +1116,9 @@ func CreateConfiguration(metricsEnabled []string) (Configuration, []prometheus.C
 			collectors = append(collectors, BPFMapOps)
 			c.BPFMapOps = true
 
+		case Namespace + "_" + SubsystemBPF + "_map_pressure":
+			c.BPFMapPressure = true
+
 		case Namespace + "_" + SubsystemTriggers + "_policy_update_total":
 			TriggerPolicyUpdateTotal = prometheus.NewCounterVec(prometheus.CounterOpts{
 				Namespace: Namespace,
@@ -1259,6 +1264,19 @@ func MustRegister(c ...prometheus.Collector) {
 // Register registers a collector
 func Register(c prometheus.Collector) error {
 	return registry.Register(c)
+}
+
+// RegisterConstGauge registers a new gauge with const labels
+func RegisterConstGauge(name string, subsystem string, desc string, labels map[string]string) (Gauge, error) {
+	gauge := prometheus.NewGauge(prometheus.GaugeOpts{
+		Namespace:   Namespace,
+		Subsystem:   subsystem,
+		Name:        name,
+		Help:        desc,
+		ConstLabels: labels,
+	})
+	err := Register(gauge)
+	return gauge, err
 }
 
 // RegisterList registers a list of collectors. If registration of one

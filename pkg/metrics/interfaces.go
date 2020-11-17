@@ -112,6 +112,11 @@ func (ov *observerVec) MustCurryWith(prometheus.Labels) prometheus.ObserverVec {
 
 // Gauge
 
+type Gauge interface {
+	prometheus.Gauge
+	prometheus.Collector
+}
+
 type gauge struct {
 	prometheus.Metric
 	prometheus.Collector

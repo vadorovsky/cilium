@@ -87,6 +87,12 @@ var (
 	MaxEntries = 16384
 )
 
+const (
+	// pressureMetricThreshold sets the threshold over which map pressure will
+	// be reported for the policy map.
+	pressureMetricThreshold = 0.1
+)
+
 type PolicyMap struct {
 	*bpf.Map
 }
@@ -396,7 +402,7 @@ func newMap(path string) *PolicyMap {
 			MaxEntries,
 			flags, 0,
 			bpf.ConvertKeyValue,
-		),
+		).WithPressureMetricThreshold(pressureMetricThreshold),
 	}
 }
 
